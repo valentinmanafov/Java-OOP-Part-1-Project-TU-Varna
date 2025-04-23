@@ -3,17 +3,13 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Arrays;
 
-
-class CLI {
-    private final CLICommands commandHandler = new CLICommands();
+public class CLI {
+    private final Database database = new Database();
+    private final CLICommands commandHandler = new CLICommands(database);
     private final Map<String, CommandHandler> commandMap = new HashMap<>();
 
     public CLI() {
         initializeCommands();
-    }
-
-    interface CommandHandler {
-        void execute(String[] args);
     }
 
     private void initializeCommands() {
@@ -38,20 +34,22 @@ class CLI {
     public void start() {
         Scanner scanner = new Scanner(System.in);
         System.out.println("Database CLI. Type 'help' for commands.");
-
-        while(true) {
+        while (true) {
             System.out.print("> ");
             String input = scanner.nextLine().trim();
-            if(input.isEmpty()) continue;
-
+            if (input.isEmpty()) continue;
             String[] tokens = input.split("\\s+");
             String command = tokens[0].toLowerCase();
             String[] args = Arrays.copyOfRange(tokens, 1, tokens.length);
-
-            if(commandMap.containsKey(command)) {
-                commandMap.get(command).execute(args);
+            CommandHandler handler = commandMap.get(command);
+            if (handler != null) {
+                try {
+                    handler.execute(args);
+                } catch (Exception e) {
+                    System.out.println("An unexpected internal error occurred: " + e.getMessage());
+                }
             } else {
-                System.out.println("Unknown command: " + command);
+                System.out.println("Unknown command: '" + command + "'.");
             }
         }
     }
