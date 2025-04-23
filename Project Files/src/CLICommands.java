@@ -35,8 +35,25 @@ public class CLICommands {
         System.exit(0);
     }
 
+    public void handleShowTables(String[] args) {
+        try {
+            Set<String> tableNamesSet = database.getTableNames();
+            if (tableNamesSet.isEmpty()) {
+                System.out.println("No tables loaded.");
+            } else {
+                List<String> tableNamesList = new ArrayList<>(tableNamesSet);
+                Collections.sort(tableNamesList);
+                System.out.println("Loaded Tables:");
+                for (String name : tableNamesList) {
+                    System.out.println("  - " + name);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error listing tables: " + e.getMessage());
+        }
+    }
+
     public void handleImport(String[] args) { notImplemented("import"); }
-    public void handleShowTables(String[] args) { notImplemented("showtables"); }
     public void handleDescribe(String[] args) { notImplemented("describe"); }
     public void handlePrint(String[] args) { notImplemented("print"); }
     public void handleExport(String[] args) { notImplemented("export"); }
