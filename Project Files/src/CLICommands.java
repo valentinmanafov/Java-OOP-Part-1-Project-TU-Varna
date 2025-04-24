@@ -77,6 +77,20 @@ public class CLICommands {
         }
     }
 
+    public void handleRename(String[] args) {
+        try {
+            if (args.length != 2) {
+                System.out.println("Usage: rename <old_table_name> <new_table_name>");
+                return;
+            }
+            String oldName = args[0];
+            String newName = args[1];
+            database.renameTable(oldName, newName);
+        } catch (DatabaseOperationException | IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
     public void handleImport(String[] args) { notImplemented("import"); }
     public void handlePrint(String[] args) { notImplemented("print"); }
     public void handleExport(String[] args) { notImplemented("export"); }
@@ -86,7 +100,6 @@ public class CLICommands {
     public void handleDelete(String[] args) { notImplemented("delete"); }
     public void handleInsert(String[] args) { notImplemented("insert"); }
     public void handleInnerJoin(String[] args) { notImplemented("innerjoin"); }
-    public void handleRename(String[] args) { notImplemented("rename"); }
     public void handleCount(String[] args) { notImplemented("count"); }
     public void handleAggregate(String[] args) { notImplemented("aggregate"); }
 
