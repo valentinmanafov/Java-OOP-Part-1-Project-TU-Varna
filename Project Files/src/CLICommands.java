@@ -116,13 +116,48 @@ public class CLICommands {
         }
     }
 
+    public void handleInsert(String[] args) {
+        try {
+            if (args.length < 2) {
+                System.out.println("Usage: insert <table_name> <value1> ...");
+                return;
+            }
+            String tableName = args[0];
+            Table table = database.getTable(tableName);
+            List<Column> columns = table.getColumns();
+
+            int expectedValues = columns.size();
+            int providedValues = args.length - 1;
+
+            if (providedValues != expectedValues) {
+                System.out.println("Error: Expected " + expectedValues + " values, got " + providedValues);
+                return;
+            }
+
+            List<Object> parsedValues = new ArrayList<>();
+            for (int i = 0; i < expectedValues; i++) {
+                String inputValue = args[i + 1];
+                Column column = columns.get(i);
+                try {
+                    parsedValues.add(TypeParser.parse(inputValue, column.getType()));
+                } catch (DatabaseOperationException e) {
+                    System.out.println("Error parsing value for column '" + column.getName() + "': " + e.getMessage());
+                    return;
+                }
+            }
+            table.addRow(new Row(parsedValues));
+            System.out.println("Row inserted into '" + tableName + "'.");
+        } catch (DatabaseOperationException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
     public void handleImport(String[] args) { notImplemented("import"); }
     public void handlePrint(String[] args) { notImplemented("print"); }
     public void handleExport(String[] args) { notImplemented("export"); }
     public void handleSelect(String[] args) { notImplemented("select"); }
     public void handleUpdate(String[] args) { notImplemented("update"); }
     public void handleDelete(String[] args) { notImplemented("delete"); }
-    public void handleInsert(String[] args) { notImplemented("insert"); }
     public void handleInnerJoin(String[] args) { notImplemented("innerjoin"); }
     public void handleCount(String[] args) { notImplemented("count"); }
     public void handleAggregate(String[] args) { notImplemented("aggregate"); }
