@@ -35,7 +35,21 @@ public class TypeParser {
         return false;
     }
 
-    public static boolean looselyEquals(Object tv, String sv, DataType ct) {
-        return false;
+    public static boolean looselyEquals(Object tableValue, String searchValue, DataType columnType) {
+        if (tableValue == null) {
+            return searchValue != null && searchValue.equalsIgnoreCase("NULL");
+        }
+        if (searchValue != null && searchValue.equalsIgnoreCase("NULL")) {
+            return false;
+        }
+        if (searchValue == null) {
+            return false;
+        }
+        try {
+            Object parsedSearchValue = parse(searchValue, columnType);
+            return tableValue.equals(parsedSearchValue);
+        } catch (DatabaseOperationException e) {
+            return false;
+        }
     }
 }
