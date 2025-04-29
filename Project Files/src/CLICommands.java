@@ -191,11 +191,62 @@ public class CLICommands {
         }
     }
 
+    public void handleUpdate(String[] args) {
+        try {
+            if (args.length != 5) {
+                System.out.println("Usage: update <tbl> <s_idx> <s_val> <t_idx> <t_val>");
+                return;
+            }
+            String tableName = args[0];
+            String searchColNStr = args[1];
+            String searchVal = args[2];
+            String targetColNStr = args[3];
+            String targetValStr = args[4];
+            Table table = database.getTable(tableName);
+            int searchColIndex, targetColIndex;
+            try {
+                searchColIndex = Integer.parseInt(searchColNStr);
+                targetColIndex = Integer.parseInt(targetColNStr);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid index.");
+                return;
+            }
+            Column searchColumn = table.getColumn(searchColIndex);
+            Column targetColumn = table.getColumn(targetColIndex);
+            Object targetValueObject;
+            try {
+                targetValueObject = TypeParser.parse(targetValStr, targetColumn.getType());
+            } catch (DatabaseOperationException e) {
+                System.out.println("Error parsing target value: " + e.getMessage());
+                return;
+            }
+            int updatedCount = 0;
+            try {
+                int rowCount = table.getRows().size();
+                for (int i = 0; i < rowCount; i++) {
+                    Row row = table.getRow(i);
+                    if (TypeParser.looselyEquals(row.getValue(searchColIndex), searchVal, searchColumn.getType())) {
+                        row.setValue(targetColIndex, targetValueObject);
+                        updatedCount++;
+                    }
+                }
+            } catch (IndexOutOfBoundsException e) {
+                throw new DatabaseOperationException("Internal error during update", e);
+            }
+            if (updatedCount > 0) {
+                System.out.println("Updated " + updatedCount + " row(s).");
+            } else {
+                System.out.println("No rows matched criteria.");
+            }
+        } catch (DatabaseOperationException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
     public void handleImport(String[] args) { notImplemented("import"); }
     public void handlePrint(String[] args) { notImplemented("print"); }
     public void handleExport(String[] args) { notImplemented("export"); }
     public void handleSelect(String[] args) { notImplemented("select"); }
-    public void handleUpdate(String[] args) { notImplemented("update"); }
     public void handleInnerJoin(String[] args) { notImplemented("innerjoin"); }
     public void handleCount(String[] args) { notImplemented("count"); }
     public void handleAggregate(String[] args) { notImplemented("aggregate"); }
