@@ -125,15 +125,12 @@ public class CLICommands {
             String tableName = args[0];
             Table table = database.getTable(tableName);
             List<Column> columns = table.getColumns();
-
             int expectedValues = columns.size();
             int providedValues = args.length - 1;
-
             if (providedValues != expectedValues) {
                 System.out.println("Error: Expected " + expectedValues + " values, got " + providedValues);
                 return;
             }
-
             List<Object> parsedValues = new ArrayList<>();
             for (int i = 0; i < expectedValues; i++) {
                 String inputValue = args[i + 1];
@@ -152,12 +149,53 @@ public class CLICommands {
         }
     }
 
+    public void handleDelete(String[] args) {
+        try {
+            if (args.length != 3) {
+                System.out.println("Usage: delete <table_name> <col_idx> <value>");
+                return;
+            }
+            String tableName = args[0];
+            String searchColNStr = args[1];
+            String searchValue = args[2];
+            Table table = database.getTable(tableName);
+            int searchColIndex;
+            try {
+                searchColIndex = Integer.parseInt(searchColNStr);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid index.");
+                return;
+            }
+            Column searchColumn = table.getColumn(searchColIndex);
+            List<Row> remainingRows = new ArrayList<>();
+            List<Row> currentRows = table.getRows();
+            int originalRowCount = currentRows.size();
+            try {
+                for(Row row : currentRows) {
+                    if (!TypeParser.looselyEquals(row.getValue(searchColIndex), searchValue, searchColumn.getType())) {
+                        remainingRows.add(row);
+                    }
+                }
+            } catch (IndexOutOfBoundsException e) {
+                throw new DatabaseOperationException("Internal error during delete", e);
+            }
+            int deletedCount = originalRowCount - remainingRows.size();
+            if (deletedCount > 0) {
+                table.setRows(remainingRows);
+                System.out.println("Deleted " + deletedCount + " row(s).");
+            } else {
+                System.out.println("No rows matched criteria.");
+            }
+        } catch (DatabaseOperationException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
     public void handleImport(String[] args) { notImplemented("import"); }
     public void handlePrint(String[] args) { notImplemented("print"); }
     public void handleExport(String[] args) { notImplemented("export"); }
     public void handleSelect(String[] args) { notImplemented("select"); }
     public void handleUpdate(String[] args) { notImplemented("update"); }
-    public void handleDelete(String[] args) { notImplemented("delete"); }
     public void handleInnerJoin(String[] args) { notImplemented("innerjoin"); }
     public void handleCount(String[] args) { notImplemented("count"); }
     public void handleAggregate(String[] args) { notImplemented("aggregate"); }
