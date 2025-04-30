@@ -277,10 +277,49 @@ public class CLICommands {
         }
     }
 
+    public void handleSelect(String[] args) {
+        try {
+            if (args.length != 3) {
+                System.out.println("Usage: select <col_idx> <value> <table_name>");
+                return;
+            }
+            String columnNStr = args[0];
+            String searchValue = args[1];
+            String tableName = args[2];
+            Table table = database.getTable(tableName);
+            int columnIndex;
+            try {
+                columnIndex = Integer.parseInt(columnNStr);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid index.");
+                return;
+            }
+            Column searchColumn = table.getColumn(columnIndex);
+            List<Row> matchingRows = new ArrayList<>();
+            try {
+                for (Row row : table.getRows()) {
+                    if (TypeParser.looselyEquals(row.getValue(columnIndex), searchValue, searchColumn.getType())) {
+                        matchingRows.add(row);
+                    }
+                }
+            } catch (IndexOutOfBoundsException e) {
+                throw new DatabaseOperationException("Internal error during select", e);
+            }
+            if (matchingRows.isEmpty()) {
+                System.out.println("No rows found matching criteria.");
+                return;
+            }
+            System.out.println("Selected rows:");
+            displayRowsPaginated(tableName + " (Selected)", table.getColumns(), matchingRows);
+            System.out.println("Finished display. (Pagination not yet integrated)");
+        } catch (DatabaseOperationException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
     public void handleImport(String[] args) { notImplemented("import"); }
     public void handlePrint(String[] args) { notImplemented("print"); }
     public void handleExport(String[] args) { notImplemented("export"); }
-    public void handleSelect(String[] args) { notImplemented("select"); }
     public void handleInnerJoin(String[] args) { notImplemented("innerjoin"); }
     public void handleAggregate(String[] args) { notImplemented("aggregate"); }
 
@@ -289,9 +328,18 @@ public class CLICommands {
     }
 
     private void displayRowsPaginated(String title, List<Column> columns, List<Row> rowsToDisplay) {
-        System.out.println("Pagination display for '" + title + "' not implemented yet.");
-        if (rowsToDisplay != null && !rowsToDisplay.isEmpty()) {
-            for (Row row : rowsToDisplay) { System.out.println(row); }
+        System.out.println("\n--- Displaying: " + title + " ---");
+        if (rowsToDisplay == null || rowsToDisplay.isEmpty()) {
+            System.out.println("No rows.");
+            return;
         }
+        try {
+            for (Row row : rowsToDisplay) {
+                System.out.println(row.toString());
+            }
+        } catch (IndexOutOfBoundsException e) {
+            System.out.println("Error displaying row data: " + e.getMessage());
+        }
+        System.out.println("--- End of Display ---");
     }
 }
