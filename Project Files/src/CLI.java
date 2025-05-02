@@ -3,7 +3,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Arrays;
 
-public class CLI {
+class CLI {
     private final Database database = new Database();
     private final CLICommands commandHandler = new CLICommands(database);
     private final Map<String, CommandHandler> commandMap = new HashMap<>();
@@ -13,6 +13,7 @@ public class CLI {
     }
 
     private void initializeCommands() {
+        commandMap.put("createtable", args -> commandHandler.handleCreateTable(args));
         commandMap.put("import", args -> commandHandler.handleImport(args));
         commandMap.put("showtables", args -> commandHandler.handleShowTables(args));
         commandMap.put("describe", args -> commandHandler.handleDescribe(args));
@@ -33,7 +34,7 @@ public class CLI {
 
     public void start() {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Database CLI. Type 'help' for commands.");
+        System.out.println("Simple Database CLI. Type 'help' for commands.");
         while (true) {
             System.out.print("> ");
             String input = scanner.nextLine().trim();
