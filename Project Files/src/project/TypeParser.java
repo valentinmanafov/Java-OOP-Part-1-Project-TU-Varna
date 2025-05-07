@@ -1,3 +1,5 @@
+package project;
+
 public class TypeParser {
 
     public static Object parse(String value, DataType targetType) throws DatabaseOperationException {

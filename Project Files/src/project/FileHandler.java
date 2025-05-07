@@ -1,10 +1,13 @@
+package project;
+
 import java.io.*;
 import java.util.*;
 
+
 public class FileHandler {
 
-    private static final String DELIMITER_PATTERN_READ = "\\s*\\|\\s*";
-    private static final String DELIMITER_WRITE = " | ";
+    private static final String COLUMN_DATA_DELIMITER_REGEX = "\\s*\\|\\s*";
+    private static final String COLUMN_DATA_DELIMITER_WRITE = " | ";
     private static final String HEADER_SEPARATOR_DELIMITER_WRITE = "-+-";
 
     public static void writeTableToFile(Table table, String filename) throws DatabaseOperationException {
@@ -48,12 +51,12 @@ public class FileHandler {
                 headerLine.append(paddedHeader);
                 separatorLine.append(repeatChar('-', columnWidths.get(i)));
                 if (i < columns.size() - 1) {
-                    headerLine.append(DELIMITER_WRITE);
+                    headerLine.append(COLUMN_DATA_DELIMITER_WRITE);
                     separatorLine.append(HEADER_SEPARATOR_DELIMITER_WRITE);
                 }
             }
-            headerLine.append(" | ");
-            separatorLine.append(" | ");
+            headerLine.append(" |");
+            separatorLine.append(" |");
             writer.println(headerLine.toString());
             writer.println(separatorLine.toString());
 
@@ -78,10 +81,10 @@ public class FileHandler {
                         }
                         writer.print(padRight(valStr, columnWidths.get(j)));
                         if (j < columns.size() - 1) {
-                            writer.print(DELIMITER_WRITE);
+                            writer.print(COLUMN_DATA_DELIMITER_WRITE);
                         }
                     }
-                    writer.println(" |");
+                    writer.println(" | ");
                 }
             }
             System.out.println("Table '" + table.getName() + "' exported successfully to '" + outputFilename + "'.");
@@ -106,7 +109,7 @@ public class FileHandler {
 
             line = reader.readLine(); lineNumber++;
             if (line == null || !line.startsWith("|") || !line.endsWith("|")) throw new DatabaseOperationException("File format error: Invalid column header format (Line 2).");
-            String[] colDefsArray = line.substring(1, line.length() - 1).split(DELIMITER_PATTERN_READ);
+            String[] colDefsArray = line.substring(1, line.length() - 1).split(COLUMN_DATA_DELIMITER_REGEX);
 
             if (colDefsArray.length == 1 && colDefsArray[0].trim().equalsIgnoreCase("(Table has no columns)")) {
             } else {
@@ -139,7 +142,7 @@ public class FileHandler {
                     System.out.println("Warning: Line " + lineNumber + " has invalid row format. Skipping: " + line);
                     continue;
                 }
-                String[] valuesStr = line.substring(1, line.length() - 1).split(DELIMITER_PATTERN_READ, -1);
+                String[] valuesStr = line.substring(1, line.length() - 1).split(COLUMN_DATA_DELIMITER_REGEX, -1);
 
                 if (valuesStr.length != importedColumns.size()) {
                     System.out.println("Warning: Line " + lineNumber + " value count mismatch. Expected " + importedColumns.size() + ", got " + valuesStr.length + ". Skipping: " + line);
@@ -171,12 +174,12 @@ public class FileHandler {
         }
     }
 
-    static String formatValueAsString(Object value) {
+    public static String formatValueAsString(Object value) { // Made public
         if (value == null) return "NULL";
         return value.toString();
     }
 
-    static String padRight(String s, int n) {
+    public static String padRight(String s, int n) { // Made public
         String str = (s == null) ? "" : s;
         if (str.length() > n) return str.substring(0, n);
         if (str.length() == n) return str;
@@ -185,7 +188,7 @@ public class FileHandler {
         return sb.toString();
     }
 
-    static String repeatChar(char c, int n) {
+    public static String repeatChar(char c, int n) { // Made public
         if (n <= 0) return "";
         char[] chars = new char[n];
         Arrays.fill(chars, c);

@@ -1,3 +1,5 @@
+package project;
+
 public class Column {
     private String name;
     private DataType type;

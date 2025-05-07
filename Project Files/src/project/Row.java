@@ -1,3 +1,5 @@
+package project;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,15 +18,14 @@ public class Row {
         if (index >= 0 && index < values.size()) {
             return values.get(index);
         }
-        throw new IndexOutOfBoundsException("Row index out of bounds: " + index);
+        throw new IndexOutOfBoundsException("project.Row index out of bounds: " + index);
     }
 
-    // Throws standard Java exception
     public void setValue(int index, Object value) throws IndexOutOfBoundsException {
         if (index >= 0 && index < values.size()) {
             values.set(index, value);
         } else {
-            throw new IndexOutOfBoundsException("Row index out of bounds: " + index);
+            throw new IndexOutOfBoundsException("project.Row index out of bounds: " + index);
         }
     }
 
