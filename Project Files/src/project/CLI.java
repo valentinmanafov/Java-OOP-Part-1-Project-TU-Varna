@@ -24,7 +24,7 @@ class CLI {
         commandMap.put("showtables", new ShowTablesCommand(database));
         commandMap.put("describe", new DescribeCommand(database));
         commandMap.put("print", new PrintCommand(database, inputScanner));
-        //commandMap.put("export", new ExportCommand(database));
+        commandMap.put("export", new ExportCommand(database));
         commandMap.put("select", new SelectCommand(database, inputScanner));
         commandMap.put("addcolumn", new AddColumnCommand(database));
         commandMap.put("update", new UpdateCommand(database));
