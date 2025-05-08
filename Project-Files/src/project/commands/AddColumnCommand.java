@@ -1,7 +1,6 @@
 package project.commands;
 
 import project.*;
-import java.util.*;
 
 public class AddColumnCommand implements CommandHandler {
 
@@ -15,8 +14,7 @@ public class AddColumnCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 3) {
-                System.out.println("Usage: addcolumn <table_name> <col_name> <type>");
-                System.out.println("Types: Integer, Double, String");
+                System.out.println("Usage: addcolumn <tbl> <name> <type>\nTypes: Integer, Double, String");
                 return;
             }
             String tableName = args[0];
@@ -31,6 +29,7 @@ public class AddColumnCommand implements CommandHandler {
                 return;
             }
             table.addColumn(new Column(colName, colType));
+            database.dataModified(tableName);
             System.out.println("Column '" + colName + "' added to '" + tableName + "'.");
         } catch (DatabaseOperationException e) {
             System.out.println("Error: " + e.getMessage());

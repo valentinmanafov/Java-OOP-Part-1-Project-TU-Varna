@@ -1,6 +1,7 @@
 package project.commands;
 
 import project.*;
+
 import java.util.*;
 
 public class UpdateCommand implements CommandHandler {
@@ -55,6 +56,7 @@ public class UpdateCommand implements CommandHandler {
                 throw new DatabaseOperationException("Internal error during update", e);
             }
             if (updatedCount > 0) {
+                database.dataModified(tableName);
                 System.out.println("Updated " + updatedCount + " row(s).");
             } else {
                 System.out.println("No rows matched criteria.");

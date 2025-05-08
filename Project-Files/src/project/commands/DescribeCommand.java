@@ -1,10 +1,7 @@
 package project.commands;
 
-import project.CommandHandler;
-import project.Database;
-import project.DatabaseOperationException;
-import project.Table;
-import project.Column;
+import project.*;
+
 import java.util.*;
 
 public class DescribeCommand implements CommandHandler {

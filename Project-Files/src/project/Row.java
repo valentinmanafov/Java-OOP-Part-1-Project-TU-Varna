@@ -18,20 +18,24 @@ public class Row {
         if (index >= 0 && index < values.size()) {
             return values.get(index);
         }
-        throw new IndexOutOfBoundsException("project.Row index out of bounds: " + index);
+        throw new IndexOutOfBoundsException("ERROR: Row index out of bounds: " + index);
     }
 
     public void setValue(int index, Object value) throws IndexOutOfBoundsException {
         if (index >= 0 && index < values.size()) {
             values.set(index, value);
         } else {
-            throw new IndexOutOfBoundsException("project.Row index out of bounds: " + index);
+            throw new IndexOutOfBoundsException("ERROR: Row index out of bounds: " + index);
         }
     }
 
-    public int size() { return values.size(); }
+    public int size() {
+        return values.size();
+    }
 
-    protected void addValue(Object value) { values.add(value); }
+    protected void addValue(Object value) {
+        values.add(value);
+    }
 
     @Override
     public String toString() {

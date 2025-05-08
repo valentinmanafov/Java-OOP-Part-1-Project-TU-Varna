@@ -1,15 +1,16 @@
 package project.commands;
 
 import project.*;
+
 import java.util.*;
 
-public class PrintCommand implements CommandHandler {
+public class SelectCommand implements CommandHandler {
 
     private final Database database;
     private final Scanner inputScanner;
     private static final int PAGE_SIZE = 15;
 
-    public PrintCommand(Database database, Scanner scanner) {
+    public SelectCommand(Database database, Scanner scanner) {
         this.database = database;
         this.inputScanner = scanner;
     }
@@ -17,35 +18,58 @@ public class PrintCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         try {
-            if (args.length != 1) {
-                System.out.println("Usage: print <table_name>");
+            if (args.length != 3) {
+                System.out.println("Usage: select <col_idx> <value> <table_name>");
                 return;
             }
-            String tableName = args[0];
+            String columnNStr = args[0];
+            String searchValue = args[1];
+            String tableName = args[2];
             Table table = database.getTable(tableName);
-            List<Column> columns = table.getColumns();
-            List<Row> rows = table.getRows();
+            int columnIndex;
+            try {
+                columnIndex = Integer.parseInt(columnNStr);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid index.");
+                return;
+            }
+            Column searchColumn = table.getColumn(columnIndex);
+            List<Row> matchingRows = new ArrayList<>();
+            try {
+                for (Row row : table.getRows()) {
+                    if (TypeParser.looselyEquals(row.getValue(columnIndex), searchValue, searchColumn.getType())) {
+                        matchingRows.add(row);
+                    }
+                }
+            } catch (IndexOutOfBoundsException e) {
+                throw new DatabaseOperationException("Internal error during select", e);
+            }
 
-            if (columns.isEmpty()) {
-                System.out.println("Table '" + tableName + "' has no columns.");
+            if (matchingRows.isEmpty()) {
+                System.out.println("No rows found matching criteria.");
                 return;
             }
-            if (rows.isEmpty()) {
-                System.out.println("Table '" + tableName + "' has no rows.");
-                return;
-            }
-            displayRowsPaginated(tableName, columns, rows);
-            System.out.println("Finished displaying table '" + tableName + "'.");
+
+            System.out.println("Selected rows from '" + tableName + "' where column " + columnIndex + " ('" + searchColumn.getName() + "') == '" + searchValue + "':");
+            displayRowsPaginated(tableName + " (Selected)", table.getColumns(), matchingRows);
+            System.out.println("Finished displaying selected rows.");
+
         } catch (DatabaseOperationException e) {
             System.out.println("Error: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during print: " + e.getMessage());
+            System.out.println("An unexpected error occurred during select display: " + e.getMessage());
         }
     }
 
     private void displayRowsPaginated(String title, List<Column> columns, List<Row> rowsToDisplay) {
-        if (rowsToDisplay == null || rowsToDisplay.isEmpty()) { System.out.println("No rows."); return; }
-        if (columns == null || columns.isEmpty()) { System.out.println("No columns."); return; }
+        if (rowsToDisplay == null || rowsToDisplay.isEmpty()) {
+            System.out.println("No rows.");
+            return;
+        }
+        if (columns == null || columns.isEmpty()) {
+            System.out.println("No columns.");
+            return;
+        }
 
         int totalRows = rowsToDisplay.size();
         int totalPages = (int) Math.ceil((double) totalRows / PAGE_SIZE);
@@ -93,9 +117,9 @@ public class PrintCommand implements CommandHandler {
                 for (int i = start; i < end; i++) {
                     Row row = rowsToDisplay.get(i);
                     System.out.print("|");
-                    for(int j=0; j<columns.size(); j++){
+                    for (int j = 0; j < columns.size(); j++) {
                         String valStr = "";
-                        if (j < row.size()){
+                        if (j < row.size()) {
                             valStr = FileHandler.formatValueAsString(row.getValue(j));
                         } else {
                             valStr = "[NoData]";
@@ -120,9 +144,13 @@ public class PrintCommand implements CommandHandler {
                 System.out.println("Input error.");
                 break;
             }
-            if (choice.equals("N")) { if (currentPage < totalPages) currentPage++; else System.out.println("Last page."); }
-            else if (choice.equals("P")) { if (currentPage > 1) currentPage--; else System.out.println("First page."); }
-            else if (choice.equals("E")) break;
+            if (choice.equals("N")) {
+                if (currentPage < totalPages) currentPage++;
+                else System.out.println("Last page.");
+            } else if (choice.equals("P")) {
+                if (currentPage > 1) currentPage--;
+                else System.out.println("First page.");
+            } else if (choice.equals("E")) break;
             else System.out.println("Invalid option.");
         }
     }

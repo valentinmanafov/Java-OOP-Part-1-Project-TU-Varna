@@ -1,6 +1,7 @@
 package project.commands;
 
 import project.*;
+
 import java.util.*;
 
 public class AggregateCommand implements CommandHandler {
@@ -76,16 +77,26 @@ public class AggregateCommand implements CommandHandler {
             }
             Optional<Double> result = Optional.empty();
             switch (operation) {
-                case "sum": result = Optional.of(sum); break;
-                case "product": result = Optional.of(product); break;
-                case "maximum": result = (max != null) ? Optional.of(max) : Optional.empty(); break;
-                case "minimum": result = (min != null) ? Optional.of(min) : Optional.empty(); break;
-                default: System.out.println("Unknown operation: " + args[4]); return;
+                case "sum":
+                    result = Optional.of(sum);
+                    break;
+                case "product":
+                    result = Optional.of(product);
+                    break;
+                case "maximum":
+                    result = (max != null) ? Optional.of(max) : Optional.empty();
+                    break;
+                case "minimum":
+                    result = (min != null) ? Optional.of(min) : Optional.empty();
+                    break;
+                default:
+                    System.out.println("Unknown operation: " + args[4]);
+                    return;
             }
             if (result.isPresent()) {
                 double resValue = result.get();
                 if (targetType == DataType.INTEGER && resValue == Math.floor(resValue) && !Double.isInfinite(resValue)) {
-                    System.out.println("Result (" + operation + "): " + (int)resValue);
+                    System.out.println("Result (" + operation + "): " + (int) resValue);
                 } else {
                     System.out.println("Result (" + operation + "): " + resValue);
                 }

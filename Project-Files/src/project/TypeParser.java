@@ -1,4 +1,5 @@
 package project;
+
 import java.util.*;
 
 public class TypeParser {
@@ -17,7 +18,7 @@ public class TypeParser {
                     }
                     return Integer.parseInt(intValue);
                 } catch (NumberFormatException e) {
-                    throw new DatabaseOperationException("Cannot parse '" + value + "' as INTEGER", e);
+                    throw new DatabaseOperationException("ERROR: Cannot parse '" + value + "' as INTEGER", e);
                 }
             case DOUBLE:
                 try {
@@ -27,7 +28,7 @@ public class TypeParser {
                     }
                     return Double.parseDouble(doubleValue);
                 } catch (NumberFormatException e) {
-                    throw new DatabaseOperationException("Cannot parse '" + value + "' as DOUBLE", e);
+                    throw new DatabaseOperationException("ERROR: Cannot parse '" + value + "' as DOUBLE", e);
                 }
             case STRING:
                 if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
@@ -56,10 +57,10 @@ public class TypeParser {
                     }
                     return parsedString.toString();
                 } else {
-                    throw new DatabaseOperationException("Invalid STRING format: Value must be enclosed in double quotes (\"). Got: " + value);
+                    throw new DatabaseOperationException("ERROR: Invalid STRING format: Value must be enclosed in double quotes (\"). Got: " + value);
                 }
             default:
-                throw new DatabaseOperationException("Internal Error: Unsupported data type: " + targetType);
+                throw new DatabaseOperationException("ERROR: Unsupported data type: " + targetType);
         }
     }
 

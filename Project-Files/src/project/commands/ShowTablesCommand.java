@@ -2,6 +2,7 @@ package project.commands;
 
 import project.CommandHandler;
 import project.Database;
+
 import java.util.*;
 
 public class ShowTablesCommand implements CommandHandler {
@@ -14,14 +15,18 @@ public class ShowTablesCommand implements CommandHandler {
 
     @Override
     public void execute(String[] args) {
+        if (!database.isCatalogOpen()) {
+            System.out.println("Error: No catalog file open. Use 'open <filepath>'.");
+            return;
+        }
         try {
             Set<String> tableNamesSet = database.getTableNames();
             if (tableNamesSet.isEmpty()) {
-                System.out.println("No tables loaded.");
+                System.out.println("No tables registered in the current catalog.");
             } else {
                 List<String> tableNamesList = new ArrayList<>(tableNamesSet);
                 Collections.sort(tableNamesList);
-                System.out.println("Loaded Tables:");
+                System.out.println("Registered Tables:");
                 for (String name : tableNamesList) {
                     System.out.println("  - " + name);
                 }
