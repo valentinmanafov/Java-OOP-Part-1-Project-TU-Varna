@@ -20,7 +20,7 @@ class CLI {
 
     private void initializeCommands() {
         commandMap.put("createtable", new CreateTableCommand(database));
-        //commandMap.put("import", new ImportCommand(database));
+        commandMap.put("import", new ImportCommand(database));
         commandMap.put("showtables", new ShowTablesCommand(database));
         commandMap.put("describe", new DescribeCommand(database));
         commandMap.put("print", new PrintCommand(database, inputScanner));
