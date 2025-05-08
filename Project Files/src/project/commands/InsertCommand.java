@@ -14,57 +14,37 @@ public class InsertCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         try {
-            if (args.length < 4 || args.length % 2 != 1) {
-                System.out.println("Usage: insert <table_name> <col1_name> <value1> [col2_name value2] ...");
+            // Usage: insert <table_name> <value1> <value2> ... (values for all columns in order)
+            if (args.length < 2) { // Need at least table name and one value (for a one-column table)
+                System.out.println("Usage: insert <table_name> <value1> <value2> ...");
+                return;
+            }
+            String tableName = args[0];
+            Table table = database.getTable(tableName); // Throws DatabaseOperationException
+            List<Column> columns = table.getColumns();
+            int expectedValues = columns.size();
+            int providedValues = args.length - 1; // Number of values provided by user
+
+            if (providedValues != expectedValues) {
+                System.out.println("Error: Expected " + expectedValues + " values for " + expectedValues + " columns, but got " + providedValues + ".");
                 return;
             }
 
-            String tableName = args[0];
-            Table table = database.getTable(tableName);
-            List<Column> tableColumns = table.getColumns();
-            int numTableCols = tableColumns.size();
-
-            Map<String, String> inputValuesMap = new HashMap<>();
-            for (int i = 1; i < args.length; i += 2) {
-                String colName = args[i];
-                String colValue = args[i + 1];
-                if (inputValuesMap.containsKey(colName.toLowerCase())) {
-                    System.out.println("Error: Duplicate column name provided in insert statement: '" + colName + "'.");
-                    return;
-                }
-                inputValuesMap.put(colName.toLowerCase(), colValue);
-            }
-
-            List<Object> newRowValues = new ArrayList<>(Collections.nCopies(numTableCols, null));
-
-            for (Map.Entry<String, String> entry : inputValuesMap.entrySet()) {
-                String inputColNameLower = entry.getKey();
-                String inputValueStr = entry.getValue();
-                boolean columnFound = false;
-
-                for (int i = 0; i < numTableCols; i++) {
-                    Column tableCol = tableColumns.get(i);
-                    if (tableCol.getName().toLowerCase().equals(inputColNameLower)) {
-                        try {
-                            Object parsedValue = TypeParser.parse(inputValueStr, tableCol.getType());
-                            newRowValues.set(i, parsedValue);
-                            columnFound = true;
-                            break;
-                        } catch (DatabaseOperationException e) {
-                            System.out.println("Error parsing value for column '" + tableCol.getName() + "': " + e.getMessage());
-                            return;
-                        }
-                    }
-                }
-
-                if (!columnFound) {
-                    System.out.println("Error: Column '" + inputColNameLower + "' not found in table '" + tableName + "'.");
-                    return;
+            List<Object> parsedValues = new ArrayList<>();
+            for (int i = 0; i < expectedValues; i++) {
+                String inputValue = args[i + 1]; // Get value corresponding to column index i
+                Column column = columns.get(i);
+                try {
+                    parsedValues.add(TypeParser.parse(inputValue, column.getType())); // Throws DatabaseOperationException
+                } catch (DatabaseOperationException e) {
+                    System.out.println("Error parsing value for column '" + column.getName() + "' (" + column.getType() + "): '" + inputValue + "'. " + e.getMessage());
+                    return; // Stop insert on first error
                 }
             }
 
-            table.addRow(new Row(newRowValues));
+            table.addRow(new Row(parsedValues)); // Throws DatabaseOperationException
             System.out.println("Row inserted into '" + tableName + "'.");
+            // Removed auto-save
 
         } catch (DatabaseOperationException e) {
             System.out.println("Error: " + e.getMessage());
