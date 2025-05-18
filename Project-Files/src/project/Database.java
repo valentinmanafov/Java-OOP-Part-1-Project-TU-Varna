@@ -1,20 +1,25 @@
 package project;
 
-import java.util.*;
 import java.io.File;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+
 
 public class Database {
 
-    private Map<String, Table> loadedTablesInMemory;
-    private Map<String, String> tableRegistry;
-    private String currentCatalogFilePath = null;
-    private Set<String> modifiedLoadedTables;
-    private boolean hasUnsavedCatalogChanges = false;
+    private String currentCatalogFilePath;
+    private Map<String, String> tableFilePathsRegistry;
+    private Map<String, Table> allTablesInMemory;
+    private boolean hasUnsavedChangesGlobal;
 
     public Database() {
-        this.loadedTablesInMemory = new HashMap<>();
-        this.tableRegistry = new LinkedHashMap<>();
-        this.modifiedLoadedTables = new HashSet<>();
+        this.currentCatalogFilePath = null;
+        this.tableFilePathsRegistry = new LinkedHashMap<>();
+        this.allTablesInMemory = new HashMap<>();
+        this.hasUnsavedChangesGlobal = false;
     }
 
     public boolean isCatalogOpen() {
@@ -26,178 +31,203 @@ public class Database {
     }
 
     public boolean hasUnsavedChanges() {
-        return this.hasUnsavedCatalogChanges || !this.modifiedLoadedTables.isEmpty();
+        return this.hasUnsavedChangesGlobal;
     }
 
-    public void loadCatalog(String filePath, Map<String, String> registry) {
-        closeCatalogInternal();
+    public void loadCatalog(String filePath, Map<String, String> registry) throws DatabaseOperationException {
+        closeDatabaseInternal();
+
         this.currentCatalogFilePath = filePath;
-        this.tableRegistry = new LinkedHashMap<>(registry);
-        this.hasUnsavedCatalogChanges = false;
-        this.modifiedLoadedTables.clear();
-        this.loadedTablesInMemory.clear();
-        System.out.println("Successfully opened database: " + new File(filePath).getName());
-        if (tableRegistry.isEmpty()) {
-            System.out.println("WARNING: Database is empty");
-        } else {
-            System.out.println("Registered tables: " + String.join(", ", tableRegistry.keySet()));
+        this.tableFilePathsRegistry = new LinkedHashMap<>(registry);
 
+        System.out.println("Database catalog '" + new File(filePath).getName() + "' definition loaded.");
+
+        if (this.tableFilePathsRegistry.isEmpty()) {
+            System.out.println("WARNING: Database catalog is empty.");
         }
+
+        for (Map.Entry<String, String> entry : this.tableFilePathsRegistry.entrySet()) {
+            String tableName = entry.getKey();
+            String tableDataFilePath = entry.getValue();
+            try {
+                System.out.println("Loading table '" + tableName + "' from " + tableDataFilePath + "...");
+                Table table = FileHandler.readTableFromFile(tableDataFilePath);
+                if (!table.getName().equals(tableName)) {
+                    System.out.println("WARNING: Table name in file ('" + table.getName() +
+                            "') differs from registered name ('" + tableName + "'). Using registered name.");
+                    table.setName(tableName);
+                }
+                this.allTablesInMemory.put(tableName, table);
+            } catch (DatabaseOperationException e) {
+                closeDatabaseInternal();
+                throw new DatabaseOperationException("Failed to load table '" + tableName + "' from '" + tableDataFilePath + "': " + e.getMessage(), e);
+            }
+        }
+
+        this.hasUnsavedChangesGlobal = false;
+        System.out.println("All tables for database '" + new File(filePath).getName() + "' loaded successfully. " + this.allTablesInMemory.size() + " table(s) in memory.");
     }
+
 
     public void closeCatalog() {
         if (!isCatalogOpen()) {
-            System.out.println("WARING: No database file is currently open.");
+            System.out.println("WARNING: No database file is currently open.");
             return;
         }
         String closedFileName = new File(currentCatalogFilePath).getName();
-        closeCatalogInternal();
+        closeDatabaseInternal();
         System.out.println("Successfully closed database: " + closedFileName);
     }
 
-    private void closeCatalogInternal() {
+    private void closeDatabaseInternal() {
         this.currentCatalogFilePath = null;
-        this.tableRegistry.clear();
-        this.loadedTablesInMemory.clear();
-        this.modifiedLoadedTables.clear();
-        this.hasUnsavedCatalogChanges = false;
+        this.tableFilePathsRegistry.clear();
+        this.allTablesInMemory.clear();
+        this.hasUnsavedChangesGlobal = false;
         System.gc();
     }
 
     public void markCatalogAsSaved(String filePath) {
         this.currentCatalogFilePath = filePath;
-        this.hasUnsavedCatalogChanges = false;
-        this.modifiedLoadedTables.clear();
+        this.hasUnsavedChangesGlobal = false;
     }
 
-    private void markCatalogStructureChanged() {
-        if (isCatalogOpen()) {
-            this.hasUnsavedCatalogChanges = true;
-        }
-    }
-
-    public void markTableDataModified(String tableName) {
-        if (isCatalogOpen() && loadedTablesInMemory.containsKey(tableName)) {
-            this.modifiedLoadedTables.add(tableName);
-            this.hasUnsavedCatalogChanges = true;
-        }
-    }
 
     public Table getTable(String name) throws DatabaseOperationException {
-        if (!isCatalogOpen()) throw new DatabaseOperationException("ERROR: No database file open.");
-        if (!tableRegistry.containsKey(name))
-            throw new DatabaseOperationException("ERROR: Table '" + name + "' not registered in the database.");
-        if (loadedTablesInMemory.containsKey(name)) {
-            return loadedTablesInMemory.get(name);
+        if (!isCatalogOpen()) {
+            throw new DatabaseOperationException("ERROR: No database file open.");
         }
-        String filePath = tableRegistry.get(name);
-        if (filePath == null)
-            throw new DatabaseOperationException("ERROR: No file path registered for table '" + name + "'.");
-        System.out.println("Loading table '" + name + "' from " + filePath + "...");
-        Table loadedTable = FileHandler.readTableFromFile(filePath);
-        if (!loadedTable.getName().equals(name)) {
-            System.out.println("WARNING: Table name in file ('" + loadedTable.getName() + "') differs from registered name ('" + name + "'). Using registered name.");
-            loadedTable.setName(name);
+        Table table = this.allTablesInMemory.get(name);
+        if (table == null) {
+            if (this.tableFilePathsRegistry.containsKey(name)) {
+                throw new DatabaseOperationException("ERROR: Table '" + name + "' is registered but was not found in memory (load may have failed during open operation).");
+            } else {
+                throw new DatabaseOperationException("ERROR: Table '" + name + "' not found in the database (not listed in catalog).");
+            }
         }
-        loadedTablesInMemory.put(name, loadedTable);
-        return loadedTable;
+        return table;
     }
 
     public void registerNewTable(Table table, String filePath) throws DatabaseOperationException {
-        if (!isCatalogOpen()) throw new DatabaseOperationException("ERROR: No database file open.");
-        if (table == null || table.getName() == null)
-            throw new DatabaseOperationException("ERROR: Cannot register null table.");
+        if (!isCatalogOpen()) {
+            throw new DatabaseOperationException("ERROR: No database file open to register new table.");
+        }
         String tableName = table.getName();
-        if (tableRegistry.containsKey(tableName))
-            throw new DatabaseOperationException("ERROR: Table name '" + tableName + "' already exists in database.");
-        tableRegistry.put(tableName, filePath);
-        loadedTablesInMemory.put(tableName, table);
-        markCatalogStructureChanged();
+        if (tableName == null || tableName.trim().isEmpty()) {
+            throw new DatabaseOperationException("ERROR: Table name cannot be null or empty for registration.");
+        }
+        if (this.tableFilePathsRegistry.containsKey(tableName) || this.allTablesInMemory.containsKey(tableName)) {
+            throw new DatabaseOperationException("ERROR: Table name '" + tableName + "' already exists in the database.");
+        }
+        this.tableFilePathsRegistry.put(tableName, filePath);
+        this.allTablesInMemory.put(tableName, table);
+        this.hasUnsavedChangesGlobal = true;
     }
 
     public void registerImportedTable(Table table, String filePath) throws DatabaseOperationException {
-        if (!isCatalogOpen()) throw new DatabaseOperationException("ERROR: No database file open.");
-        if (table == null || table.getName() == null)
-            throw new DatabaseOperationException("ERROR: Cannot register null table.");
+        if (!isCatalogOpen()) {
+            throw new DatabaseOperationException("ERROR: No database file open to import table into.");
+        }
         String tableName = table.getName();
-        if (tableRegistry.containsKey(tableName))
-            throw new DatabaseOperationException("ERROR: Table name '" + tableName + "' already exists in database.");
-        tableRegistry.put(tableName, filePath);
-        loadedTablesInMemory.put(tableName, table);
-        markCatalogStructureChanged();
+        if (tableName == null || tableName.trim().isEmpty()) {
+            throw new DatabaseOperationException("ERROR: Imported table name cannot be null or empty.");
+        }
+        if (this.tableFilePathsRegistry.containsKey(tableName) || this.allTablesInMemory.containsKey(tableName)) {
+            throw new DatabaseOperationException("ERROR: Table name '" + tableName + "' already exists in the database. Cannot import.");
+        }
+        this.tableFilePathsRegistry.put(tableName, filePath);
+        this.allTablesInMemory.put(tableName, table);
+        this.hasUnsavedChangesGlobal = true;
     }
 
+    public void dataModified(String tableName) throws DatabaseOperationException {
+        if (!isCatalogOpen()) {
+            throw new DatabaseOperationException("ERROR: No database file open to modify data.");
+        }
+        if (!this.allTablesInMemory.containsKey(tableName)) {
+            throw new DatabaseOperationException("ERROR: Cannot mark data modified for an unknown or unloaded table: '" + tableName + "'.");
+        }
+        this.hasUnsavedChangesGlobal = true;
+    }
+
+
     public void removeTableRegistration(String name) throws DatabaseOperationException {
-        if (!isCatalogOpen()) throw new DatabaseOperationException("ERROR: No database file open.");
-        if (!tableRegistry.containsKey(name))
-            throw new DatabaseOperationException("ERROR: Table '" + name + "' not found in database.");
-        tableRegistry.remove(name);
-        loadedTablesInMemory.remove(name);
-        modifiedLoadedTables.remove(name);
-        markCatalogStructureChanged();
-        System.out.println("Table '" + name + "' removed from database.");
+        if (!isCatalogOpen()) {
+            throw new DatabaseOperationException("ERROR: No database file open.");
+        }
+        if (!this.tableFilePathsRegistry.containsKey(name) && !this.allTablesInMemory.containsKey(name)) {
+            throw new DatabaseOperationException("ERROR: Table '" + name + "' not found for removal.");
+        }
+        this.tableFilePathsRegistry.remove(name);
+        this.allTablesInMemory.remove(name);
+        this.hasUnsavedChangesGlobal = true;
+        System.out.println("Table '" + name + "' removed from database (memory and registration).");
     }
 
     public void renameTableRegistration(String oldName, String newName, String newFilePath) throws DatabaseOperationException {
         if (!isCatalogOpen()) throw new DatabaseOperationException("ERROR: No database file open.");
         if (oldName == null || newName == null || oldName.trim().isEmpty() || newName.trim().isEmpty())
-            throw new DatabaseOperationException("ERROR: Table names cannot be empty.");
-        if (oldName.equalsIgnoreCase(newName)) return;
-        if (!tableRegistry.containsKey(oldName))
-            throw new DatabaseOperationException("ERROR: Table '" + oldName + "' not found.");
-        if (tableRegistry.containsKey(newName))
-            throw new DatabaseOperationException("ERROR: Table name '" + newName + "' already exists.");
-        tableRegistry.remove(oldName);
-        tableRegistry.put(newName, newFilePath);
-        if (loadedTablesInMemory.containsKey(oldName)) {
-            Table table = loadedTablesInMemory.remove(oldName);
-            try {
-                table.setName(newName);
-            } catch (IllegalArgumentException e) {
+            throw new DatabaseOperationException("ERROR: Table names cannot be null or empty for renaming.");
+
+        if (oldName.equalsIgnoreCase(newName)) {
+            if (this.tableFilePathsRegistry.containsKey(oldName) && !this.tableFilePathsRegistry.get(oldName).equals(newFilePath)) {
+                this.tableFilePathsRegistry.put(oldName, newFilePath);
+                this.hasUnsavedChangesGlobal = true;
+                System.out.println("Table '" + oldName + "' file path in registry updated to '" + newFilePath + "'.");
             }
-            loadedTablesInMemory.put(newName, table);
-            if (modifiedLoadedTables.remove(oldName)) modifiedLoadedTables.add(newName);
+            return;
         }
-        markCatalogStructureChanged();
-        System.out.println("Table registration renamed from '" + oldName + "' to '" + newName + "'.");
+
+        if (!this.allTablesInMemory.containsKey(oldName) || !this.tableFilePathsRegistry.containsKey(oldName))
+            throw new DatabaseOperationException("ERROR: Table '" + oldName + "' not found for renaming.");
+        if (this.allTablesInMemory.containsKey(newName) || this.tableFilePathsRegistry.containsKey(newName))
+            throw new DatabaseOperationException("ERROR: Target table name '" + newName + "' already exists.");
+
+        Table tableToRename = this.allTablesInMemory.remove(oldName);
+        this.tableFilePathsRegistry.remove(oldName);
+
+        tableToRename.setName(newName);
+        this.allTablesInMemory.put(newName, tableToRename);
+        this.tableFilePathsRegistry.put(newName, newFilePath);
+
+        this.hasUnsavedChangesGlobal = true;
+        System.out.println("Table renamed from '" + oldName + "' to '" + newName + "'.");
     }
+
 
     public Map<String, String> getTableRegistry() {
-        return Collections.unmodifiableMap(tableRegistry);
+        return Collections.unmodifiableMap(this.tableFilePathsRegistry);
     }
 
-    public Set<String> getModifiedLoadedTableNames() {
-        return Collections.unmodifiableSet(modifiedLoadedTables);
+
+    public Map<String, Table> getAllTablesInMemory() {
+        return Collections.unmodifiableMap(allTablesInMemory);
     }
 
-    public Table getLoadedTable(String name) {
-        return loadedTablesInMemory.get(name);
-    }
 
     public Set<String> getTableNames() {
-        return Collections.unmodifiableSet(tableRegistry.keySet());
+        return Collections.unmodifiableSet(this.tableFilePathsRegistry.keySet());
     }
+
 
     public String getTableFilePath(String tableName) throws DatabaseOperationException {
-        if (!tableRegistry.containsKey(tableName)) {
-            throw new DatabaseOperationException("ERROR: Table '" + tableName + "' not registered in database.");
+        String path = this.tableFilePathsRegistry.get(tableName);
+        if (path == null) {
+            throw new DatabaseOperationException("ERROR: Table '" + tableName + "' not found in path registry.");
         }
-        return tableRegistry.get(tableName);
+        return path;
     }
 
-    public void dataModified(String tableName) throws DatabaseOperationException {
-        if (!isCatalogOpen()) throw new DatabaseOperationException("ERROR: Cannot modify data: No database file open.");
-        if (!tableRegistry.containsKey(tableName))
-            throw new DatabaseOperationException("ERROR: Cannot modify data: Table '" + tableName + "' not registered.");
-        if (loadedTablesInMemory.containsKey(tableName)) {
-            this.modifiedLoadedTables.add(tableName);
-            this.hasUnsavedCatalogChanges = true;
-        } else {
-            System.out.println("WARNING: Modification marked for table '" + tableName + "' not loaded in memory.");
+
+    public Set<String> getModifiedLoadedTableNames() {
+        if (this.hasUnsavedChangesGlobal) {
+            return Collections.unmodifiableSet(this.allTablesInMemory.keySet());
         }
+        return Collections.emptySet();
     }
 
-    public Map<String, Table> getLoadedTables() {
-        return Collections.unmodifiableMap(loadedTablesInMemory);
+
+    public Table getLoadedTable(String name) {
+        return this.allTablesInMemory.get(name);
     }
 }

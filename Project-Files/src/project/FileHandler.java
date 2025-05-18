@@ -59,6 +59,108 @@ public class FileHandler {
         }
     }
 
+    public static Table readTableFromFile(String filename) throws DatabaseOperationException {
+        String actualTableName = null;
+        List<Column> importedColumns = new ArrayList<>();
+        List<Row> importedRows = new ArrayList<>();
+        int lineNumber = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            String line;
+            line = reader.readLine();
+            lineNumber++;
+            if (line == null || !line.startsWith(TABLE_NAME_PREFIX))
+                throw new DatabaseOperationException("ERROR: Missing '" + TABLE_NAME_PREFIX + "<name>' on Line 1 in " + filename);
+            actualTableName = line.substring(TABLE_NAME_PREFIX.length()).trim();
+            if (actualTableName.isEmpty())
+                throw new DatabaseOperationException("ERROR: Table name empty (Line 1) in " + filename);
+
+            line = reader.readLine();
+            lineNumber++;
+            String trimmedHeaderLine = (line != null) ? line.trim() : null;
+            if (trimmedHeaderLine == null || !trimmedHeaderLine.startsWith("|") || !trimmedHeaderLine.endsWith("|"))
+                throw new DatabaseOperationException("ERROR: Invalid column header format (Line 2) in " + filename + ". Expected format like '|Col1 - TYPE|Col2 - TYPE|'");
+
+            String[] colDefsArray = trimmedHeaderLine.substring(1, trimmedHeaderLine.length() - 1).split(DELIMITER_PATTERN_READ);
+            if (colDefsArray.length == 1 && colDefsArray[0].trim().equalsIgnoreCase("(Table has no columns)")) {
+            } else {
+                for (String colDef : colDefsArray) {
+                    if (colDef.trim().isEmpty() && colDefsArray.length == 1) {
+                        break;
+                    }
+                    String[] parts = colDef.split("\\s*-\\s*", 2);
+                    if (parts.length != 2)
+                        throw new DatabaseOperationException("ERROR: Invalid column definition '" + colDef + "' (Line 2) in " + filename + ". Expected 'Name - TYPE'.");
+                    String colName = parts[0].trim();
+                    String typeName = parts[1].trim();
+                    if (colName.isEmpty())
+                        throw new DatabaseOperationException("ERROR: Column name empty (Line 2) in " + filename);
+                    try {
+                        importedColumns.add(new Column(colName, DataType.valueOf(typeName.toUpperCase())));
+                    } catch (IllegalArgumentException e) {
+                        throw new DatabaseOperationException("ERROR: Unknown data type '" + typeName + "' for column '" + colName + "' (Line 2) in " + filename);
+                    }
+                }
+            }
+            line = reader.readLine();
+            lineNumber++;
+            String trimmedSeparatorLine = (line != null) ? line.trim() : null;
+            if (trimmedSeparatorLine == null || !trimmedSeparatorLine.startsWith("|") || !trimmedSeparatorLine.endsWith("|") || !trimmedSeparatorLine.contains("-")){
+                if (!importedColumns.isEmpty() || (colDefsArray.length > 0 && !colDefsArray[0].trim().equalsIgnoreCase("(Table has no columns)"))) {
+                    throw new DatabaseOperationException("ERROR: Missing or invalid header separator line (Line 3) in " + filename);
+                }
+            }
+
+
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                String trimmedDataLine = line.trim();
+                if (trimmedDataLine.startsWith("| (Table has no rows)")) continue;
+
+                if (importedColumns.isEmpty()) {
+                    if (!trimmedDataLine.equals("|") && !trimmedDataLine.equals("||") && !trimmedDataLine.equals("| |") && !trimmedDataLine.isEmpty()) {
+                        System.out.println("WARNING: Line " + lineNumber + " has data but no columns defined. Skipping: " + line);
+                    }
+                    continue;
+                }
+
+                if (!trimmedDataLine.startsWith("|") || !trimmedDataLine.endsWith("|")) {
+                    System.out.println("WARNING: Line " + lineNumber + " has invalid row format (must start and end with '|'). Skipping: " + line);
+                    continue;
+                }
+
+                String[] valuesStr = trimmedDataLine.substring(1, trimmedDataLine.length() - 1).split(DELIMITER_PATTERN_READ, -1);
+
+                if (valuesStr.length != importedColumns.size()) {
+                    System.out.println("WARNING: Line " + lineNumber + " value count (" + valuesStr.length + ") mismatch with column count (" + importedColumns.size() + "). Skipping: " + line);
+                    continue;
+                }
+
+                List<Object> parsedValues = new ArrayList<>();
+                for (int i = 0; i < importedColumns.size(); i++) {
+                    String valToParse = valuesStr[i].trim();
+                    if (valToParse.equals("[NoData]") || valToParse.equals("[DataErr]") || valToParse.equalsIgnoreCase("NULL")) {
+                        parsedValues.add(null);
+                        continue;
+                    }
+                    try {
+                        parsedValues.add(TypeParser.parse(valToParse, importedColumns.get(i).getType()));
+                    } catch (DatabaseOperationException e) {
+                        System.out.println("WARNING: Line " + lineNumber + ", Col " + (i + 1) + " ('" + importedColumns.get(i).getName() + "'): Parse error for value '" + valToParse + "' as " + importedColumns.get(i).getType() + ". Using NULL. Error: " + e.getMessage());
+                        parsedValues.add(null);
+                    }
+                }
+                importedRows.add(new Row(parsedValues));
+            }
+            return new Table(actualTableName, importedColumns, importedRows);
+        } catch (FileNotFoundException e) {
+            throw new DatabaseOperationException("ERROR: Table file not found '" + filename + "'", e);
+        } catch (IOException e) {
+            throw new DatabaseOperationException("ERROR: reading table file '" + filename + "': " + e.getMessage(), e);
+        }
+    }
+
+
+    // writeTableToFile remains the same
     public static void writeTableToFile(Table table, String filename) throws DatabaseOperationException {
         List<Column> columns = table.getColumns();
         List<Row> rows = table.getRows();
@@ -101,15 +203,13 @@ public class FileHandler {
             writer.println(headerLine.toString());
             writer.println(separatorLine.toString());
             if (rows.isEmpty()) {
-                StringBuilder emptyRowLine = new StringBuilder("| (Table has no rows)");
-                int targetLength = separatorLine.length() - 2;
-                while (emptyRowLine.length() < targetLength) {
-                    emptyRowLine.append(" ");
+                StringBuilder emptyRowLine = new StringBuilder("(Table has no rows)");
+                int targetLength = separatorLine.length() - 3;
+                while(emptyRowLine.length() < targetLength -1){
+                    emptyRowLine.insert(0," ");
+                    if(emptyRowLine.length() < targetLength -1) emptyRowLine.append(" ");
                 }
-                if (emptyRowLine.length() > targetLength) {
-                    emptyRowLine.setLength(targetLength);
-                }
-                writer.println("|" + emptyRowLine.toString() + "|");
+                writer.println("| " + padRight(emptyRowLine.toString(), targetLength-1)+ "|");
             } else {
                 for (Row row : rows) {
                     writer.print("|");
@@ -136,122 +236,38 @@ public class FileHandler {
         }
     }
 
-    public static Table readTableFromFile(String filename) throws DatabaseOperationException {
-        String actualTableName = null;
-        List<Column> importedColumns = new ArrayList<>();
-        List<Row> importedRows = new ArrayList<>();
-        int lineNumber = 0;
-        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
-            String line;
-            line = reader.readLine();
-            lineNumber++;
-            if (line == null || !line.startsWith(TABLE_NAME_PREFIX))
-                throw new DatabaseOperationException("ERROR: Missing '" + TABLE_NAME_PREFIX + "<name>' on Line 1 in " + filename);
-            actualTableName = line.substring(TABLE_NAME_PREFIX.length()).trim();
-            if (actualTableName.isEmpty())
-                throw new DatabaseOperationException("ERROR: Table name empty (Line 1) in " + filename);
-
-            line = reader.readLine();
-            lineNumber++;
-            String trimmedHeaderLine = (line != null) ? line.trim() : null;
-            if (trimmedHeaderLine == null || !trimmedHeaderLine.startsWith("|") || !trimmedHeaderLine.endsWith("|"))
-                throw new DatabaseOperationException("ERROR: Invalid column header format (Line 2) in " + filename + ". Expected format like '|Col1 - TYPE|Col2 - TYPE|'");
-
-            String[] colDefsArray = trimmedHeaderLine.substring(1, trimmedHeaderLine.length() - 1).split(DELIMITER_PATTERN_READ);
-            if (colDefsArray.length == 1 && colDefsArray[0].trim().equalsIgnoreCase("(Table has no columns)")) {
-            } else {
-                for (String colDef : colDefsArray) {
-                    String[] parts = colDef.split("\\s*-\\s*");
-                    if (parts.length != 2)
-                        throw new DatabaseOperationException("ERROR: Invalid column definition '" + colDef + "' (Line 2) in " + filename + ". Expected 'Name - TYPE'.");
-                    String colName = parts[0].trim();
-                    String typeName = parts[1].trim();
-                    if (colName.isEmpty())
-                        throw new DatabaseOperationException("ERROR: Column name empty (Line 2) in " + filename);
-                    try {
-                        importedColumns.add(new Column(colName, DataType.valueOf(typeName.toUpperCase())));
-                    } catch (IllegalArgumentException e) {
-                        throw new DatabaseOperationException("ERROR: Unknown data type '" + typeName + "' for column '" + colName + "' (Line 2) in " + filename);
-                    }
-                }
-            }
-            line = reader.readLine();
-            lineNumber++;
-            String trimmedSeparatorLine = (line != null) ? line.trim() : null;
-            if (trimmedSeparatorLine == null || !trimmedSeparatorLine.startsWith("|") || !trimmedSeparatorLine.endsWith("|") || !trimmedSeparatorLine.contains("-"))
-                throw new DatabaseOperationException("ERROR: Missing or invalid header separator line (Line 3) in " + filename);
-
-            while ((line = reader.readLine()) != null) {
-                lineNumber++;
-                String trimmedDataLine = line.trim();
-                if (trimmedDataLine.startsWith("| (Table has no rows)")) continue;
-
-                if (importedColumns.isEmpty()) {
-                    if (!trimmedDataLine.equals("|") && !trimmedDataLine.equals("||") && !trimmedDataLine.equals("| |")) {
-                        System.out.println("WARNING: Line " + lineNumber + " has data but no columns defined. Skipping: " + line);
-                    }
-                    continue;
-                }
-
-                if (!trimmedDataLine.startsWith("|") || !trimmedDataLine.endsWith("|")) {
-                    System.out.println("WARNING: Line " + lineNumber + " has invalid row format (must start and end with '|'). Skipping: " + line);
-                    continue;
-                }
-
-                String[] valuesStr = trimmedDataLine.substring(1, trimmedDataLine.length() - 1).split(DELIMITER_PATTERN_READ, -1);
-
-                if (valuesStr.length != importedColumns.size()) {
-                    System.out.println("WARNING: Line " + lineNumber + " value count (" + valuesStr.length + ") mismatch with column count (" + importedColumns.size() + "). Skipping: " + line);
-                    continue;
-                }
-
-                List<Object> parsedValues = new ArrayList<>();
-                for (int i = 0; i < importedColumns.size(); i++) {
-                    String valToParse = valuesStr[i].trim();
-                    if (valToParse.equals("[NoData]") || valToParse.equals("[DataErr]") || valToParse.equalsIgnoreCase("NULL")) {
-                        parsedValues.add(null);
-                        continue;
-                    }
-                    try {
-                        parsedValues.add(TypeParser.parse(valToParse, importedColumns.get(i).getType()));
-                    } catch (DatabaseOperationException e) {
-                        System.out.println("WARNING: Line " + lineNumber + ", Col " + (i + 1) + " ('" + importedColumns.get(i).getName() + "'): Parse error for value '" + valToParse + "' as " + importedColumns.get(i).getType() + ". Using NULL. Error: " + e.getMessage());
-                        parsedValues.add(null);
-                    }
-                }
-                importedRows.add(new Row(parsedValues));
-            }
-            return new Table(actualTableName, importedColumns, importedRows);
-        } catch (FileNotFoundException e) {
-            throw new DatabaseOperationException("ERROR: Table file not found '" + filename + "'", e);
-        } catch (IOException e) {
-            throw new DatabaseOperationException("ERROR: reading table file '" + filename + "': " + e.getMessage(), e);
-        }
-    }
-
     public static void saveCatalogAndTables(Database db, String catalogFilePath) throws DatabaseOperationException {
-        if (!db.isCatalogOpen()) throw new DatabaseOperationException("ERROR: No database is open to save.");
-        Set<String> modifiedTables = db.getModifiedLoadedTableNames();
+        if (!db.isCatalogOpen()) {
+            throw new DatabaseOperationException("ERROR: No database is open to save.");
+        }
+
+        Set<String> tablesToSaveNames = db.getModifiedLoadedTableNames();
         Map<String, String> registry = db.getTableRegistry();
 
-        System.out.println("Saving modified tables...");
-        for (String tableName : modifiedTables) {
+        System.out.println("Saving tables...");
+        for (String tableName : tablesToSaveNames) {
             Table tableToSave = db.getLoadedTable(tableName);
             String tableFilePath = registry.get(tableName);
             if (tableToSave != null && tableFilePath != null) {
                 try {
-                    System.out.println("Saving " + tableName + " to " + tableFilePath + "...");
+                    System.out.println("Saving table '" + tableName + "' to " + tableFilePath + "...");
                     writeTableToFile(tableToSave, tableFilePath);
                 } catch (DatabaseOperationException e) {
                     throw new DatabaseOperationException("ERROR: Failed to save table '" + tableName + "': " + e.getMessage(), e);
                 }
             } else {
-                System.out.println("WARNING: Could not save table '" + tableName + "' - missing data or path.");
+                System.out.println("WARNING: Could not save table '" + tableName + "' - missing data or path information.");
             }
         }
-        System.out.println("Saving database file to " + catalogFilePath + "...");
+        if (tablesToSaveNames.isEmpty() && db.hasUnsavedChanges()) {
+            System.out.println("No specific tables marked for save, but catalog might have changed or other general changes occurred.");
+        }
+
+
+        System.out.println("Saving database catalog to " + catalogFilePath + "...");
         writeCatalog(registry, catalogFilePath);
-        System.out.println("Database and modified tables saved successfully.");
+
+        System.out.println("Database and all relevant tables saved successfully.");
     }
 
     private static String formatValueForSave(Object value) {
