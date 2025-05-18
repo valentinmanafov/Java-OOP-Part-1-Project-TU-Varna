@@ -3,15 +3,28 @@ package project;
 import java.io.*;
 import java.util.*;
 
+/**
+ * Handles reading and writing database catalog files and table data files.
+ * This class provides static methods for file operations.
+ */
 public class FileHandler {
 
     private static final String TABLE_NAME_PREFIX = "Table: ";
     private static final String DELIMITER_WRITE = " | ";
     private static final String HEADER_SEPARATOR_DELIMITER_WRITE = "-+-";
+    // Regex for splitting, allowing for surrounding whitespace.
     private static final String DELIMITER_PATTERN_READ = "\\s*\\|\\s*";
 
+
+    /**
+     * Reads a database catalog file and returns a map of table names to their file paths.
+     * Catalog file format: TableName,FilePath (one per line, '#' for comments).
+     * @param catalogFilePath The path to the catalog file.
+     * @return A {@link LinkedHashMap} preserving the order of entries, mapping table names to file paths.
+     * @throws DatabaseOperationException If an I/O error occurs or the file format is invalid.
+     */
     public static Map<String, String> readCatalog(String catalogFilePath) throws DatabaseOperationException {
-        Map<String, String> registry = new LinkedHashMap<>();
+        Map<String, String> registry = new LinkedHashMap<>(); // Preserves insertion order
         File catalogFile = new File(catalogFilePath);
         int lineNumber = 0;
         if (!catalogFile.exists()) {
@@ -23,7 +36,9 @@ public class FileHandler {
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
                 line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) continue;
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
                 String[] parts = line.split(",", 2);
                 if (parts.length != 2) {
                     System.out.println("WARNING: Skipping invalid line " + lineNumber + " in database: " + line);
@@ -37,7 +52,7 @@ public class FileHandler {
                 }
                 if (registry.containsKey(tableName)) {
                     System.out.println("WARNING: Duplicate table name '" + tableName + "' in database (line " + lineNumber + ").");
-                    continue;
+                    continue; // Skip duplicates, keeping the first encountered
                 }
                 registry.put(tableName, filePath);
             }
@@ -47,6 +62,12 @@ public class FileHandler {
         return registry;
     }
 
+    /**
+     * Writes the table registry (map of table names to file paths) to a catalog file.
+     * @param registry The map of table names to file paths.
+     * @param catalogFilePath The path to the catalog file to be written.
+     * @throws DatabaseOperationException If an I/O error occurs.
+     */
     public static void writeCatalog(Map<String, String> registry, String catalogFilePath) throws DatabaseOperationException {
         try (PrintWriter writer = new PrintWriter(new FileWriter(catalogFilePath))) {
             writer.println("# Database File");
@@ -59,6 +80,15 @@ public class FileHandler {
         }
     }
 
+    /**
+     * Reads a table from its data file.
+     * The file format includes the table name, column definitions, and row data,
+     * using a pipe-delimited format.
+     * Handles parsing of column types and row values.
+     * @param filename The path to the table data file.
+     * @return A {@link Table} object populated with data from the file.
+     * @throws DatabaseOperationException If the file is not found, an I/O error occurs, or the file format is invalid.
+     */
     public static Table readTableFromFile(String filename) throws DatabaseOperationException {
         String actualTableName = null;
         List<Column> importedColumns = new ArrayList<>();
@@ -66,6 +96,7 @@ public class FileHandler {
         int lineNumber = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
+
             line = reader.readLine();
             lineNumber++;
             if (line == null || !line.startsWith(TABLE_NAME_PREFIX))
@@ -80,14 +111,15 @@ public class FileHandler {
             if (trimmedHeaderLine == null || !trimmedHeaderLine.startsWith("|") || !trimmedHeaderLine.endsWith("|"))
                 throw new DatabaseOperationException("ERROR: Invalid column header format (Line 2) in " + filename + ". Expected format like '|Col1 - TYPE|Col2 - TYPE|'");
 
+            //Parsing column definitions from header line.
             String[] colDefsArray = trimmedHeaderLine.substring(1, trimmedHeaderLine.length() - 1).split(DELIMITER_PATTERN_READ);
             if (colDefsArray.length == 1 && colDefsArray[0].trim().equalsIgnoreCase("(Table has no columns)")) {
             } else {
                 for (String colDef : colDefsArray) {
-                    if (colDef.trim().isEmpty() && colDefsArray.length == 1) {
+                    if (colDef.trim().isEmpty() && colDefsArray.length == 1) { // Handles case like "| |" for empty header
                         break;
                     }
-                    String[] parts = colDef.split("\\s*-\\s*", 2);
+                    String[] parts = colDef.split("\\s*-\\s*", 2); // Split "Name - TYPE"
                     if (parts.length != 2)
                         throw new DatabaseOperationException("ERROR: Invalid column definition '" + colDef + "' (Line 2) in " + filename + ". Expected 'Name - TYPE'.");
                     String colName = parts[0].trim();
@@ -110,11 +142,10 @@ public class FileHandler {
                 }
             }
 
-
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
                 String trimmedDataLine = line.trim();
-                if (trimmedDataLine.startsWith("| (Table has no rows)")) continue;
+                if (trimmedDataLine.startsWith("| (Table has no rows)")) continue; // Skip no rows placeholder message
 
                 if (importedColumns.isEmpty()) {
                     if (!trimmedDataLine.equals("|") && !trimmedDataLine.equals("||") && !trimmedDataLine.equals("| |") && !trimmedDataLine.isEmpty()) {
@@ -128,6 +159,7 @@ public class FileHandler {
                     continue;
                 }
 
+                // Use -1 limit to include trailing empty strings if a column at the end is NULL or empty string
                 String[] valuesStr = trimmedDataLine.substring(1, trimmedDataLine.length() - 1).split(DELIMITER_PATTERN_READ, -1);
 
                 if (valuesStr.length != importedColumns.size()) {
@@ -160,26 +192,40 @@ public class FileHandler {
     }
 
 
-    // writeTableToFile remains the same
+    /**
+     * Writes a table's data to a specified file.
+     * Formats the output with table name, column headers (name and type),
+     * a separator line, and then pipe-delimited row data.
+     * Calculates column widths for pretty printing.
+     * @param table The {@link Table} object to write.
+     * @param filename The path to the file where the table data will be written.
+     * @throws DatabaseOperationException If an I/O error occurs.
+     */
     public static void writeTableToFile(Table table, String filename) throws DatabaseOperationException {
         List<Column> columns = table.getColumns();
         List<Row> rows = table.getRows();
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
             writer.println(TABLE_NAME_PREFIX + table.getName());
+
             if (columns.isEmpty()) {
-                writer.println("| (Table has no columns) |");
+                writer.println("| (Table has no columns) |"); // Special placeholder if no columns
                 return;
             }
+
             List<String> combinedColumnHeaders = new ArrayList<>();
             Map<Integer, Integer> columnWidths = new HashMap<>();
+
+            // Calculate optimal column widths for formatting.
+            // Width is based on header text length and the length of the longest data value in that column.
             for (int i = 0; i < columns.size(); i++) {
                 Column col = columns.get(i);
                 String headerText = col.getName() + " - " + col.getType().name();
                 combinedColumnHeaders.add(headerText);
                 int maxWidth = headerText.length();
                 for (Row row : rows) {
-                    if (i < row.size()) {
+                    if (i < row.size()) { // Check if row has this column
                         try {
+                            // Use formatValueAsString to get the string representation for width calculation
                             maxWidth = Math.max(maxWidth, formatValueAsString(row.getValue(i)).length());
                         } catch (IndexOutOfBoundsException e) {
                         }
@@ -187,6 +233,7 @@ public class FileHandler {
                 }
                 columnWidths.put(i, Math.max(maxWidth, 5));
             }
+
             StringBuilder headerLine = new StringBuilder("|");
             StringBuilder separatorLine = new StringBuilder("|");
             for (int i = 0; i < columns.size(); i++) {
@@ -202,6 +249,7 @@ public class FileHandler {
             separatorLine.append("|");
             writer.println(headerLine.toString());
             writer.println(separatorLine.toString());
+
             if (rows.isEmpty()) {
                 StringBuilder emptyRowLine = new StringBuilder("(Table has no rows)");
                 int targetLength = separatorLine.length() - 3;
@@ -236,18 +284,27 @@ public class FileHandler {
         }
     }
 
+    /**
+     * Saves the entire database, including its catalog and all modified tables.
+     * It iterates through tables marked as modified (or all loaded tables if global changes exist)
+     * and writes them to their respective files. Then, it writes the catalog file.
+     * @param db The {@link Database} instance to save.
+     * @param catalogFilePath The path where the main catalog file should be saved.
+     * @throws DatabaseOperationException If the database is not open or any I/O error occurs during saving.
+     */
     public static void saveCatalogAndTables(Database db, String catalogFilePath) throws DatabaseOperationException {
         if (!db.isCatalogOpen()) {
             throw new DatabaseOperationException("ERROR: No database is open to save.");
         }
 
+        // Get the names of tables that need saving.
         Set<String> tablesToSaveNames = db.getModifiedLoadedTableNames();
-        Map<String, String> registry = db.getTableRegistry();
+        Map<String, String> registry = db.getTableRegistry(); // Get the current table name to file path mappings.
 
         System.out.println("Saving tables...");
         for (String tableName : tablesToSaveNames) {
-            Table tableToSave = db.getLoadedTable(tableName);
-            String tableFilePath = registry.get(tableName);
+            Table tableToSave = db.getLoadedTable(tableName); // Get the Table object from memory.
+            String tableFilePath = registry.get(tableName);   // Get its designated file path.
             if (tableToSave != null && tableFilePath != null) {
                 try {
                     System.out.println("Saving table '" + tableName + "' to " + tableFilePath + "...");
@@ -259,35 +316,66 @@ public class FileHandler {
                 System.out.println("WARNING: Could not save table '" + tableName + "' - missing data or path information.");
             }
         }
+
         if (tablesToSaveNames.isEmpty() && db.hasUnsavedChanges()) {
             System.out.println("No specific tables marked for save, but catalog might have changed or other general changes occurred.");
         }
 
-
-        System.out.println("Saving database catalog to " + catalogFilePath + "...");
+        // Always save the database file itself, as it might have changed.
+        System.out.println("Saving database to " + catalogFilePath + "...");
         writeCatalog(registry, catalogFilePath);
 
         System.out.println("Database and all relevant tables saved successfully.");
     }
 
+    /**
+     * Formats a value for saving to a file.
+     * NULL values are represented as "NULL". Strings are enclosed in double quotes,
+     * with internal backslashes and double quotes escaped.
+     * Other types are converted using their toString() method.
+     * @param value The object value to format.
+     * @return The string representation of the value for file storage.
+     */
     private static String formatValueForSave(Object value) {
-        if (value == null) return "NULL";
+        if (value == null) {
+            return "NULL";
+        }
         if (value instanceof String) {
             String s = (String) value;
+            // Escape backslashes and double quotes within the string.
             String escaped = s.replace("\\", "\\\\").replace("\"", "\\\"");
             return "\"" + escaped + "\"";
         }
         return value.toString();
     }
 
+    /**
+     * Formats a value as a string for display purposes (e.g., printing to console).
+     * NULL values are represented as "NULL". Other types are converted using their toString() method.
+     * This version is simpler than {@link #formatValueForSave(Object)} as it doesn't need to handle string escaping for file storage.
+     * @param value The object value to format.
+     * @return The string representation of the value.
+     */
     public static String formatValueAsString(Object value) {
-        if (value == null) return "NULL";
+        if (value == null) {
+            return "NULL";
+        }
         return value.toString();
     }
 
+    /**
+     * Pads a string with spaces on the right to reach a specified length.
+     * If the string is null, it's treated as an empty string.
+     * If the string is already longer than or equal to the target length, it's returned unchanged.
+     * @param s The string to pad.
+     * @param n The target length.
+     * @return The padded string.
+     */
     public static String padRight(String s, int n) {
         String str = (s == null) ? "" : s;
-        if (str.length() >= n) return str;
+        if (str.length() >= n) {
+            return str;
+        }
         StringBuilder sb = new StringBuilder(str);
         while (sb.length() < n) {
             sb.append(" ");
@@ -295,13 +383,29 @@ public class FileHandler {
         return sb.toString();
     }
 
+    /**
+     * Repeats a character a specified number of times.
+     * @param c The character to repeat.
+     * @param n The number of times to repeat the character.
+     * @return A string consisting of the character repeated n times, or an empty string if n is not positive.
+     */
     public static String repeatChar(char c, int n) {
-        if (n <= 0) return "";
+        if (n <= 0) {
+            return "";
+        }
         char[] chars = new char[n];
         Arrays.fill(chars, c);
         return new String(chars);
     }
 
+    /**
+     * Extracts a potential table name from a filename by stripping the extension.
+     * For example, "MyTable.txt" would become "MyTable".
+     * This is a utility method and might not be robust for all filename conventions.
+     * @param filename The filename.
+     * @return The filename without the last extension, or the original filename if no dot is found, or "unknown" if filename is null.
+     */
+    @SuppressWarnings("unused")
     private static String extractTableNameFromFilename(String filename) {
         if (filename == null) return "unknown";
         File f = new File(filename);
