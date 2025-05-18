@@ -8,7 +8,7 @@ public class PrintCommand implements CommandHandler {
 
     private final Database database;
     private final Scanner inputScanner;
-    private static final int PAGE_SIZE = 15;
+    private static final int PAGE_SIZE = 10;
 
     public PrintCommand(Database database, Scanner scanner) {
         this.database = database;
@@ -19,7 +19,7 @@ public class PrintCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 1) {
-                System.out.println("Usage: print <table_name>");
+                System.out.println("Usage: print <table>");
                 return;
             }
             String tableName = args[0];
@@ -28,19 +28,19 @@ public class PrintCommand implements CommandHandler {
             List<Row> rows = table.getRows();
 
             if (columns.isEmpty()) {
-                System.out.println("Table '" + tableName + "' has no columns.");
+                System.out.println("WARNING: Table '" + tableName + "' has no columns.");
                 return;
             }
             if (rows.isEmpty()) {
-                System.out.println("Table '" + tableName + "' has no rows.");
+                System.out.println("WARNING: Table '" + tableName + "' has no rows.");
                 return;
             }
             displayRowsPaginated(tableName, columns, rows);
             System.out.println("Finished displaying table '" + tableName + "'.");
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during print: " + e.getMessage());
+            System.out.println("ERROR: During print: " + e.getMessage());
         }
     }
 

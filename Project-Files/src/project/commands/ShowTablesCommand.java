@@ -16,13 +16,13 @@ public class ShowTablesCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (!database.isCatalogOpen()) {
-            System.out.println("Error: No catalog file open. Use 'open <filepath>'.");
+            System.out.println("Error: No database file open. Use 'open <filepath>'.");
             return;
         }
         try {
             Set<String> tableNamesSet = database.getTableNames();
             if (tableNamesSet.isEmpty()) {
-                System.out.println("No tables registered in the current catalog.");
+                System.out.println("WARNING: No tables registered in the current catalog.");
             } else {
                 List<String> tableNamesList = new ArrayList<>(tableNamesSet);
                 Collections.sort(tableNamesList);
@@ -32,7 +32,7 @@ public class ShowTablesCommand implements CommandHandler {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error listing tables: " + e.getMessage());
+            System.out.println("ERROR: Listing tables: " + e.getMessage());
         }
     }
 }

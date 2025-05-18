@@ -16,7 +16,7 @@ public class DeleteCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 3) {
-                System.out.println("Usage: delete <tbl> <col_idx> <value>");
+                System.out.println("Usage: delete <table> <column index> <value>");
                 return;
             }
             String tableName = args[0];
@@ -27,7 +27,7 @@ public class DeleteCommand implements CommandHandler {
             try {
                 searchColIndex = Integer.parseInt(searchColNStr);
             } catch (NumberFormatException e) {
-                System.out.println("Invalid index.");
+                System.out.println("ERROR: Invalid index.");
                 return;
             }
             Column searchColumn = table.getColumn(searchColIndex);
@@ -40,7 +40,7 @@ public class DeleteCommand implements CommandHandler {
                         remainingRows.add(row);
                 }
             } catch (IndexOutOfBoundsException e) {
-                throw new DatabaseOperationException("Internal error during delete", e);
+                throw new DatabaseOperationException("ERROR: During delete", e);
             }
             int deletedCount = originalRowCount - remainingRows.size();
             if (deletedCount > 0) {
@@ -48,10 +48,10 @@ public class DeleteCommand implements CommandHandler {
                 database.dataModified(tableName);
                 System.out.println("Deleted " + deletedCount + " row(s).");
             } else {
-                System.out.println("No rows matched criteria.");
+                System.out.println("WARNING: No rows matched criteria.");
             }
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         }
     }
 }

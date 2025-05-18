@@ -17,16 +17,16 @@ public class ExitCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (database.isCatalogOpen() && database.hasUnsavedChanges()) {
-            System.out.print("Warning: Unsaved changes exist. Exit anyway without saving? (yes/no): ");
+            System.out.print("WARNING: Unsaved changes exist. Exit anyway without saving? (Y/N): ");
             String confirmation = "";
             try {
                 confirmation = inputScanner.nextLine().trim().toLowerCase();
             } catch (Exception e) {
-                System.out.println("Input error. Exit aborted.");
+                System.out.println("ERROR: Exit aborted.");
                 return;
             }
-            if (!confirmation.equals("yes")) {
-                System.out.println("Exit aborted. Use 'save' or 'saveas' first.");
+            if (!confirmation.equals("Y")) {
+                System.out.println("WARNING: Exit aborted. Use 'save' or 'saveas' first.");
                 return;
             }
         }

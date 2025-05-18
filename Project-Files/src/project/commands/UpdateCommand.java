@@ -16,7 +16,7 @@ public class UpdateCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 5) {
-                System.out.println("Usage: update <tbl> <s_idx> <s_val> <t_idx> <t_val>");
+                System.out.println("Usage: update <table> <search column index> <search value> <target column index> <target value>");
                 return;
             }
             String tableName = args[0];
@@ -39,7 +39,7 @@ public class UpdateCommand implements CommandHandler {
             try {
                 targetValueObject = TypeParser.parse(targetValStr, targetColumn.getType());
             } catch (DatabaseOperationException e) {
-                System.out.println("Error parsing target value: " + e.getMessage());
+                System.out.println("ERROR: Parsing target value: " + e.getMessage());
                 return;
             }
             int updatedCount = 0;
@@ -53,16 +53,16 @@ public class UpdateCommand implements CommandHandler {
                     }
                 }
             } catch (IndexOutOfBoundsException e) {
-                throw new DatabaseOperationException("Internal error during update", e);
+                throw new DatabaseOperationException("ERROR: During update", e);
             }
             if (updatedCount > 0) {
                 database.dataModified(tableName);
                 System.out.println("Updated " + updatedCount + " row(s).");
             } else {
-                System.out.println("No rows matched criteria.");
+                System.out.println("WARNING: No rows matched criteria.");
             }
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         }
     }
 }

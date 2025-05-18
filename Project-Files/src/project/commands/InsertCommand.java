@@ -15,7 +15,7 @@ public class InsertCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length < 2) {
-                System.out.println("Usage: insert <table_name> <value1> <value2> ...");
+                System.out.println("Usage: insert <table_name> <values...>");
                 return;
             }
             String tableName = args[0];
@@ -25,7 +25,7 @@ public class InsertCommand implements CommandHandler {
             int providedValues = args.length - 1;
 
             if (providedValues != expectedValues) {
-                System.out.println("Error: Expected " + expectedValues + " values for " + expectedValues + " columns, but got " + providedValues + ".");
+                System.out.println("ERROR:: Expected " + expectedValues + " values for " + expectedValues + " columns, but got " + providedValues + ".");
                 return;
             }
 
@@ -36,7 +36,7 @@ public class InsertCommand implements CommandHandler {
                 try {
                     parsedValues.add(TypeParser.parse(inputValue, column.getType()));
                 } catch (DatabaseOperationException e) {
-                    System.out.println("Error parsing value for column '" + column.getName() + "': " + e.getMessage());
+                    System.out.println("ERROR: Parsing value for column '" + column.getName() + "': " + e.getMessage());
                     return;
                 }
             }
@@ -46,9 +46,9 @@ public class InsertCommand implements CommandHandler {
             System.out.println("Row inserted into '" + tableName + "'.");
 
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR:: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during insert: " + e.getMessage());
+            System.out.println("Error: During insert: " + e.getMessage());
         }
     }
 }

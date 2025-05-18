@@ -1,0 +1,5 @@
+# Database Catalog File
+# Format: TableName,FilePath
+Test,Test.txt
+BMW,BMW.txt
+Toyota,Toyota.txt

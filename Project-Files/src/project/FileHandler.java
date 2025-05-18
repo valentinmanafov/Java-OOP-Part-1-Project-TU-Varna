@@ -15,7 +15,7 @@ public class FileHandler {
         File catalogFile = new File(catalogFilePath);
         int lineNumber = 0;
         if (!catalogFile.exists()) {
-            System.out.println("WARNING: Catalog file not found: " + catalogFilePath + ". Starting empty.");
+            System.out.println("WARNING: Database file not found: " + catalogFilePath + ". Starting empty.");
             return registry;
         }
         try (BufferedReader reader = new BufferedReader(new FileReader(catalogFile))) {
@@ -26,36 +26,36 @@ public class FileHandler {
                 if (line.isEmpty() || line.startsWith("#")) continue;
                 String[] parts = line.split(",", 2);
                 if (parts.length != 2) {
-                    System.out.println("WARNING: Skipping invalid line " + lineNumber + " in catalog: " + line);
+                    System.out.println("WARNING: Skipping invalid line " + lineNumber + " in database: " + line);
                     continue;
                 }
                 String tableName = parts[0].trim();
                 String filePath = parts[1].trim();
                 if (tableName.isEmpty() || filePath.isEmpty()) {
-                    System.out.println("WARNING: Skipping invalid line " + lineNumber + " in catalog: Name or path empty.");
+                    System.out.println("WARNING: Skipping invalid line " + lineNumber + " in database: Name or path empty.");
                     continue;
                 }
                 if (registry.containsKey(tableName)) {
-                    System.out.println("WARNING: Duplicate table name '" + tableName + "' in catalog (line " + lineNumber + ").");
+                    System.out.println("WARNING: Duplicate table name '" + tableName + "' in database (line " + lineNumber + ").");
                     continue;
                 }
                 registry.put(tableName, filePath);
             }
         } catch (IOException e) {
-            throw new DatabaseOperationException("ERROR: Reading catalog file '" + catalogFilePath + "': " + e.getMessage(), e);
+            throw new DatabaseOperationException("ERROR: Reading database file '" + catalogFilePath + "': " + e.getMessage(), e);
         }
         return registry;
     }
 
     public static void writeCatalog(Map<String, String> registry, String catalogFilePath) throws DatabaseOperationException {
         try (PrintWriter writer = new PrintWriter(new FileWriter(catalogFilePath))) {
-            writer.println("# Database Catalog File");
+            writer.println("# Database File");
             writer.println("# Format: TableName,FilePath");
             for (Map.Entry<String, String> entry : registry.entrySet()) {
                 writer.println(entry.getKey() + "," + entry.getValue());
             }
         } catch (IOException e) {
-            throw new DatabaseOperationException("ERROR: Writing catalog file '" + catalogFilePath + "': " + e.getMessage(), e);
+            throw new DatabaseOperationException("ERROR: Writing database file '" + catalogFilePath + "': " + e.getMessage(), e);
         }
     }
 
@@ -96,16 +96,20 @@ public class FileHandler {
                     separatorLine.append(HEADER_SEPARATOR_DELIMITER_WRITE);
                 }
             }
-            headerLine.append(" | ");
-            separatorLine.append(" | ");
+            headerLine.append("|");
+            separatorLine.append("|");
             writer.println(headerLine.toString());
             writer.println(separatorLine.toString());
             if (rows.isEmpty()) {
                 StringBuilder emptyRowLine = new StringBuilder("| (Table has no rows)");
-                int targetLength = separatorLine.length() - 1;
-                while (emptyRowLine.length() < targetLength) emptyRowLine.append(" ");
-                emptyRowLine.append("|");
-                writer.println(emptyRowLine.toString());
+                int targetLength = separatorLine.length() - 2;
+                while (emptyRowLine.length() < targetLength) {
+                    emptyRowLine.append(" ");
+                }
+                if (emptyRowLine.length() > targetLength) {
+                    emptyRowLine.setLength(targetLength);
+                }
+                writer.println("|" + emptyRowLine.toString() + "|");
             } else {
                 for (Row row : rows) {
                     writer.print("|");
@@ -120,9 +124,11 @@ public class FileHandler {
                             }
                         }
                         writer.print(padRight(valStr, columnWidths.get(j)));
-                        if (j < columns.size() - 1) writer.print(DELIMITER_WRITE);
+                        if (j < columns.size() - 1) {
+                            writer.print(DELIMITER_WRITE);
+                        }
                     }
-                    writer.println(" | ");
+                    writer.println(" |");
                 }
             }
         } catch (IOException e) {
@@ -144,17 +150,20 @@ public class FileHandler {
             actualTableName = line.substring(TABLE_NAME_PREFIX.length()).trim();
             if (actualTableName.isEmpty())
                 throw new DatabaseOperationException("ERROR: Table name empty (Line 1) in " + filename);
+
             line = reader.readLine();
             lineNumber++;
-            if (line == null || !line.startsWith("|") || !line.endsWith("|"))
-                throw new DatabaseOperationException("ERROR: Invalid column header format (Line 2) in " + filename);
-            String[] colDefsArray = line.substring(1, line.length() - 1).split(DELIMITER_PATTERN_READ);
+            String trimmedHeaderLine = (line != null) ? line.trim() : null;
+            if (trimmedHeaderLine == null || !trimmedHeaderLine.startsWith("|") || !trimmedHeaderLine.endsWith("|"))
+                throw new DatabaseOperationException("ERROR: Invalid column header format (Line 2) in " + filename + ". Expected format like '|Col1 - TYPE|Col2 - TYPE|'");
+
+            String[] colDefsArray = trimmedHeaderLine.substring(1, trimmedHeaderLine.length() - 1).split(DELIMITER_PATTERN_READ);
             if (colDefsArray.length == 1 && colDefsArray[0].trim().equalsIgnoreCase("(Table has no columns)")) {
             } else {
                 for (String colDef : colDefsArray) {
                     String[] parts = colDef.split("\\s*-\\s*");
                     if (parts.length != 2)
-                        throw new DatabaseOperationException("ERROR: Invalid column definition '" + colDef + "' (Line 2) in " + filename);
+                        throw new DatabaseOperationException("ERROR: Invalid column definition '" + colDef + "' (Line 2) in " + filename + ". Expected 'Name - TYPE'.");
                     String colName = parts[0].trim();
                     String typeName = parts[1].trim();
                     if (colName.isEmpty())
@@ -168,36 +177,45 @@ public class FileHandler {
             }
             line = reader.readLine();
             lineNumber++;
-            if (line == null || !line.startsWith("|") || !line.endsWith("|") || !line.contains("-"))
+            String trimmedSeparatorLine = (line != null) ? line.trim() : null;
+            if (trimmedSeparatorLine == null || !trimmedSeparatorLine.startsWith("|") || !trimmedSeparatorLine.endsWith("|") || !trimmedSeparatorLine.contains("-"))
                 throw new DatabaseOperationException("ERROR: Missing or invalid header separator line (Line 3) in " + filename);
+
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
-                if (line.trim().startsWith("| (Table has no rows)")) continue;
+                String trimmedDataLine = line.trim();
+                if (trimmedDataLine.startsWith("| (Table has no rows)")) continue;
+
                 if (importedColumns.isEmpty()) {
-                    if (!line.trim().equals("|") && !line.trim().equals("| |"))
+                    if (!trimmedDataLine.equals("|") && !trimmedDataLine.equals("||") && !trimmedDataLine.equals("| |")) {
                         System.out.println("WARNING: Line " + lineNumber + " has data but no columns defined. Skipping: " + line);
+                    }
                     continue;
                 }
-                if (!line.startsWith("|") || !line.endsWith("|")) {
-                    System.out.println("WARNING: Line " + lineNumber + " has invalid row format. Skipping: " + line);
+
+                if (!trimmedDataLine.startsWith("|") || !trimmedDataLine.endsWith("|")) {
+                    System.out.println("WARNING: Line " + lineNumber + " has invalid row format (must start and end with '|'). Skipping: " + line);
                     continue;
                 }
-                String[] valuesStr = line.substring(1, line.length() - 1).split(DELIMITER_PATTERN_READ, -1);
+
+                String[] valuesStr = trimmedDataLine.substring(1, trimmedDataLine.length() - 1).split(DELIMITER_PATTERN_READ, -1);
+
                 if (valuesStr.length != importedColumns.size()) {
-                    System.out.println("WARNING: Line " + lineNumber + " value count mismatch. Skipping: " + line);
+                    System.out.println("WARNING: Line " + lineNumber + " value count (" + valuesStr.length + ") mismatch with column count (" + importedColumns.size() + "). Skipping: " + line);
                     continue;
                 }
+
                 List<Object> parsedValues = new ArrayList<>();
                 for (int i = 0; i < importedColumns.size(); i++) {
                     String valToParse = valuesStr[i].trim();
-                    if (valToParse.equals("[NoData]") || valToParse.equals("[DataErr]")) {
+                    if (valToParse.equals("[NoData]") || valToParse.equals("[DataErr]") || valToParse.equalsIgnoreCase("NULL")) {
                         parsedValues.add(null);
                         continue;
                     }
                     try {
                         parsedValues.add(TypeParser.parse(valToParse, importedColumns.get(i).getType()));
                     } catch (DatabaseOperationException e) {
-                        System.out.println("WARNING: Line " + lineNumber + ", Col " + (i + 1) + ": Parse error for '" + valToParse + "'. Using NULL.");
+                        System.out.println("WARNING: Line " + lineNumber + ", Col " + (i + 1) + " ('" + importedColumns.get(i).getName() + "'): Parse error for value '" + valToParse + "' as " + importedColumns.get(i).getType() + ". Using NULL. Error: " + e.getMessage());
                         parsedValues.add(null);
                     }
                 }
@@ -212,9 +230,10 @@ public class FileHandler {
     }
 
     public static void saveCatalogAndTables(Database db, String catalogFilePath) throws DatabaseOperationException {
-        if (!db.isCatalogOpen()) throw new DatabaseOperationException("ERROR: No catalog is open to save.");
+        if (!db.isCatalogOpen()) throw new DatabaseOperationException("ERROR: No database is open to save.");
         Set<String> modifiedTables = db.getModifiedLoadedTableNames();
         Map<String, String> registry = db.getTableRegistry();
+
         System.out.println("Saving modified tables...");
         for (String tableName : modifiedTables) {
             Table tableToSave = db.getLoadedTable(tableName);
@@ -230,9 +249,9 @@ public class FileHandler {
                 System.out.println("WARNING: Could not save table '" + tableName + "' - missing data or path.");
             }
         }
-        System.out.println("Saving catalog file to " + catalogFilePath + "...");
+        System.out.println("Saving database file to " + catalogFilePath + "...");
         writeCatalog(registry, catalogFilePath);
-        System.out.println("Catalog and modified tables saved successfully.");
+        System.out.println("Database and modified tables saved successfully.");
     }
 
     private static String formatValueForSave(Object value) {
@@ -252,10 +271,11 @@ public class FileHandler {
 
     public static String padRight(String s, int n) {
         String str = (s == null) ? "" : s;
-        if (str.length() > n) return str.substring(0, n);
-        if (str.length() == n) return str;
+        if (str.length() >= n) return str;
         StringBuilder sb = new StringBuilder(str);
-        while (sb.length() < n) sb.append(" ");
+        while (sb.length() < n) {
+            sb.append(" ");
+        }
         return sb.toString();
     }
 

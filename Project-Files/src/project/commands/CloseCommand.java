@@ -16,19 +16,19 @@ public class CloseCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (!database.isCatalogOpen()) {
-            System.out.println("No catalog file open.");
+            System.out.println("WARNING: No database file open.");
             return;
         }
         if (database.hasUnsavedChanges()) {
-            System.out.print("Warning: Unsaved changes. Close anyway? (yes/no): ");
+            System.out.print("WARNING: Unsaved changes. Close anyway? (Y/N): ");
             String confirmation = "";
             try {
                 confirmation = inputScanner.nextLine().trim().toLowerCase();
             } catch (Exception e) {
-                System.out.println("Input error. Close aborted.");
+                System.out.println("WARNING: Input error. Close aborted.");
                 return;
             }
-            if (!confirmation.equals("yes")) {
+            if (!confirmation.equals("Y")) {
                 System.out.println("Close aborted.");
                 return;
             }

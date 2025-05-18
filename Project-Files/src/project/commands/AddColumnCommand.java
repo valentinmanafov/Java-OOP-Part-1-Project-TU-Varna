@@ -14,7 +14,7 @@ public class AddColumnCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 3) {
-                System.out.println("Usage: addcolumn <tbl> <name> <type>\nTypes: Integer, Double, String");
+                System.out.println("Usage: addcolumn <table> <column name> <column type>\nColumn types can be: Integer, Double, String");
                 return;
             }
             String tableName = args[0];
@@ -25,14 +25,14 @@ public class AddColumnCommand implements CommandHandler {
             try {
                 colType = DataType.valueOf(typeName.trim().toUpperCase());
             } catch (IllegalArgumentException e) {
-                System.out.println("Invalid type: " + typeName);
+                System.out.println("WARNING: Invalid type: " + typeName);
                 return;
             }
             table.addColumn(new Column(colName, colType));
             database.dataModified(tableName);
             System.out.println("Column '" + colName + "' added to '" + tableName + "'.");
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         }
     }
 }

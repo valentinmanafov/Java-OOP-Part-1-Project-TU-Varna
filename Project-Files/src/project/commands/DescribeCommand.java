@@ -16,7 +16,7 @@ public class DescribeCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 1) {
-                System.out.println("Usage: describe <table_name>");
+                System.out.println("Usage: describe <table>");
                 return;
             }
             String tableName = args[0];
@@ -33,7 +33,7 @@ public class DescribeCommand implements CommandHandler {
                 }
             }
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         }
     }
 }

@@ -16,7 +16,7 @@ public class AggregateCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 5) {
-                System.out.println("Usage: aggregate <tbl> <s_idx> <s_val> <t_idx> <op>\nOps: sum, product, maximum, minimum");
+                System.out.println("Usage: aggregate <table> <search column> <search value> <target column> <operation>\nThe valid operations are: sum, product, maximum, minimum");
                 return;
             }
             String tableName = args[0];
@@ -30,14 +30,14 @@ public class AggregateCommand implements CommandHandler {
                 searchColIndex = Integer.parseInt(searchColNStr);
                 targetColIndex = Integer.parseInt(targetColNStr);
             } catch (NumberFormatException e) {
-                System.out.println("Invalid index.");
+                System.out.println("ERROR: Invalid index.");
                 return;
             }
             Column searchColumn = table.getColumn(searchColIndex);
             Column targetColumn = table.getColumn(targetColIndex);
             DataType targetType = targetColumn.getType();
             if (targetType != DataType.INTEGER && targetType != DataType.DOUBLE) {
-                System.out.println("Target column must be numeric.");
+                System.out.println("WARNING: Target column must be numeric (Integer, Double).");
                 return;
             }
             List<Number> targetValues = new ArrayList<>();
@@ -51,10 +51,10 @@ public class AggregateCommand implements CommandHandler {
                     }
                 }
             } catch (IndexOutOfBoundsException e) {
-                throw new DatabaseOperationException("Internal error during aggregate filter", e);
+                throw new DatabaseOperationException("ERROR: During aggregate filter", e);
             }
             if (targetValues.isEmpty()) {
-                System.out.println("No matching rows with numeric target values.");
+                System.out.println("WARNING: No matching rows with numeric target values (Integer, Double).");
                 return;
             }
             double sum = 0;
@@ -90,7 +90,7 @@ public class AggregateCommand implements CommandHandler {
                     result = (min != null) ? Optional.of(min) : Optional.empty();
                     break;
                 default:
-                    System.out.println("Unknown operation: " + args[4]);
+                    System.out.println("WARNING: Unknown operation: " + args[4]);
                     return;
             }
             if (result.isPresent()) {
@@ -101,10 +101,10 @@ public class AggregateCommand implements CommandHandler {
                     System.out.println("Result (" + operation + "): " + resValue);
                 }
             } else {
-                System.out.println("Could not compute result.");
+                System.out.println("ERROR: Could not compute result.");
             }
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         }
     }
 }

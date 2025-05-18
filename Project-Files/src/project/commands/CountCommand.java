@@ -14,7 +14,7 @@ public class CountCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 3) {
-                System.out.println("Usage: count <table_name> <col_idx> <value>");
+                System.out.println("Usage: count <table> <column> <value>");
                 return;
             }
             String tableName = args[0];
@@ -25,7 +25,7 @@ public class CountCommand implements CommandHandler {
             try {
                 searchColIndex = Integer.parseInt(searchColNStr);
             } catch (NumberFormatException e) {
-                System.out.println("Invalid index.");
+                System.out.println("ERROR: Invalid index.");
                 return;
             }
             Column searchColumn = table.getColumn(searchColIndex);
@@ -37,11 +37,11 @@ public class CountCommand implements CommandHandler {
                     }
                 }
             } catch (IndexOutOfBoundsException e) {
-                throw new DatabaseOperationException("Internal error during count", e);
+                throw new DatabaseOperationException("ERROR: During count", e);
             }
             System.out.println("Count: " + count);
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         }
     }
 }

@@ -16,12 +16,12 @@ public class InnerJoinCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (!database.isCatalogOpen()) {
-            System.out.println("Error: No catalog file open. Use 'open <filepath>'.");
+            System.out.println("ERROR: No database file open. Use 'open <filepath>'.");
             return;
         }
         try {
             if (args.length != 4) {
-                System.out.println("Usage: innerjoin <tbl1> <idx1> <tbl2> <idx2>");
+                System.out.println("Usage: innerjoin <table1> <column1 index> <table2> <column2>");
                 return;
             }
             String t1Name = args[0];
@@ -31,7 +31,7 @@ public class InnerJoinCommand implements CommandHandler {
             Table t1 = database.getTable(t1Name);
             Table t2 = database.getTable(t2Name);
             if (t1Name.equalsIgnoreCase(t2Name)) {
-                System.out.println("Cannot self-join.");
+                System.out.println("WARNING: Can not self-join.");
                 return;
             }
             int c1Idx, c2Idx;
@@ -39,7 +39,7 @@ public class InnerJoinCommand implements CommandHandler {
                 c1Idx = Integer.parseInt(c1IdxStr);
                 c2Idx = Integer.parseInt(c2IdxStr);
             } catch (NumberFormatException e) {
-                System.out.println("Invalid index.");
+                System.out.println("ERROR: Invalid index.");
                 return;
             }
             Column col1 = t1.getColumn(c1Idx);
@@ -68,7 +68,7 @@ public class InnerJoinCommand implements CommandHandler {
                     }
                 }
             } catch (IndexOutOfBoundsException | DatabaseOperationException e) {
-                throw new DatabaseOperationException("Internal error during join", e);
+                throw new DatabaseOperationException("ERROR: During join", e);
             }
 
             database.registerNewTable(joinedTable, finalJoinedTablePath);
@@ -76,7 +76,7 @@ public class InnerJoinCommand implements CommandHandler {
             FileHandler.writeTableToFile(joinedTable, finalJoinedTablePath);
 
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         }
     }
 

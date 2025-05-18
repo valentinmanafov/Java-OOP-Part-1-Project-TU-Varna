@@ -16,7 +16,7 @@ public class ExportCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 2) {
-                System.out.println("Usage: export <table_name> <filename.txt>");
+                System.out.println("Usage: export <table> <file.txt>");
                 return;
             }
             String tableName = args[0];
@@ -24,9 +24,9 @@ public class ExportCommand implements CommandHandler {
             Table table = database.getTable(tableName);
             FileHandler.writeTableToFile(table, filename);
         } catch (DatabaseOperationException e) {
-            System.out.println("Error exporting table: " + e.getMessage());
+            System.out.println("ERROR: Exporting table: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during export: " + e.getMessage());
+            System.out.println("ERROR: Occurred during export: " + e.getMessage());
         }
     }
 }

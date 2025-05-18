@@ -15,13 +15,13 @@ public class SaveCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (!database.isCatalogOpen()) {
-            System.out.println("Error: No catalog file open to save.");
+            System.out.println("ERROR: No database file open to save.");
             return;
         }
 
         String currentPath = database.getCurrentCatalogFilePath();
         if (currentPath == null) {
-            System.out.println("Error: Cannot save, current file path is unknown. Use 'saveas'.");
+            System.out.println("ERROR: Cannot save, current file path is unknown. Use 'saveas'.");
             return;
         }
 
@@ -34,9 +34,9 @@ public class SaveCommand implements CommandHandler {
             FileHandler.saveCatalogAndTables(database, currentPath);
             database.markCatalogAsSaved(currentPath);
         } catch (DatabaseOperationException e) {
-            System.out.println("Error saving database: " + e.getMessage());
+            System.out.println("ERROR: Saving database: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during save: " + e.getMessage());
+            System.out.println("ERROR: During save: " + e.getMessage());
         }
     }
 }

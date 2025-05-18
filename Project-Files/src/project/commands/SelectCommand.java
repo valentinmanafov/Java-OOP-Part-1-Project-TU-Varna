@@ -8,7 +8,7 @@ public class SelectCommand implements CommandHandler {
 
     private final Database database;
     private final Scanner inputScanner;
-    private static final int PAGE_SIZE = 15;
+    private static final int PAGE_SIZE = 10;
 
     public SelectCommand(Database database, Scanner scanner) {
         this.database = database;
@@ -19,18 +19,19 @@ public class SelectCommand implements CommandHandler {
     public void execute(String[] args) {
         try {
             if (args.length != 3) {
-                System.out.println("Usage: select <col_idx> <value> <table_name>");
+                System.out.println("Usage: select <table> <column index> <value>");
                 return;
             }
-            String columnNStr = args[0];
-            String searchValue = args[1];
-            String tableName = args[2];
+            String tableName = args[0];
+            String columnNStr = args[1];
+            String searchValue = args[2];
+
             Table table = database.getTable(tableName);
             int columnIndex;
             try {
                 columnIndex = Integer.parseInt(columnNStr);
             } catch (NumberFormatException e) {
-                System.out.println("Invalid index.");
+                System.out.println("ERROR: Invalid index.");
                 return;
             }
             Column searchColumn = table.getColumn(columnIndex);
@@ -42,11 +43,11 @@ public class SelectCommand implements CommandHandler {
                     }
                 }
             } catch (IndexOutOfBoundsException e) {
-                throw new DatabaseOperationException("Internal error during select", e);
+                throw new DatabaseOperationException("ERROR: During select", e);
             }
 
             if (matchingRows.isEmpty()) {
-                System.out.println("No rows found matching criteria.");
+                System.out.println("WARNING: No rows found matching criteria.");
                 return;
             }
 
@@ -55,19 +56,19 @@ public class SelectCommand implements CommandHandler {
             System.out.println("Finished displaying selected rows.");
 
         } catch (DatabaseOperationException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("ERROR: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during select display: " + e.getMessage());
+            System.out.println("ERROR: During select display: " + e.getMessage());
         }
     }
 
     private void displayRowsPaginated(String title, List<Column> columns, List<Row> rowsToDisplay) {
         if (rowsToDisplay == null || rowsToDisplay.isEmpty()) {
-            System.out.println("No rows.");
+            System.out.println("WARNING: No rows.");
             return;
         }
         if (columns == null || columns.isEmpty()) {
-            System.out.println("No columns.");
+            System.out.println("WARNING: No columns.");
             return;
         }
 
@@ -88,7 +89,7 @@ public class SelectCommand implements CommandHandler {
                 columnWidths.put(i, Math.max(maxWidth, 5));
             }
         } catch (IndexOutOfBoundsException e) {
-            System.out.println("Error calculating display widths: " + e.getMessage());
+            System.out.println("ERROR: Calculating display widths: " + e.getMessage());
             return;
         }
 
@@ -131,7 +132,7 @@ public class SelectCommand implements CommandHandler {
                 }
                 System.out.println("--- Rows " + (start + 1) + "-" + end + " of " + totalRows + " ---");
             } catch (IndexOutOfBoundsException e) {
-                System.out.println("Error displaying row data: " + e.getMessage());
+                System.out.println("ERROR: Displaying row data: " + e.getMessage());
                 break;
             }
 
@@ -141,7 +142,7 @@ public class SelectCommand implements CommandHandler {
             try {
                 choice = inputScanner.nextLine().trim().toUpperCase();
             } catch (Exception e) {
-                System.out.println("Input error.");
+                System.out.println("ERROR: Incorrect input.");
                 break;
             }
             if (choice.equals("N")) {
@@ -151,7 +152,7 @@ public class SelectCommand implements CommandHandler {
                 if (currentPage > 1) currentPage--;
                 else System.out.println("First page.");
             } else if (choice.equals("E")) break;
-            else System.out.println("Invalid option.");
+            else System.out.println("ERROR: Invalid option.");
         }
     }
 }

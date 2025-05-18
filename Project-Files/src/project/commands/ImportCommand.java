@@ -16,18 +16,18 @@ public class ImportCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (!database.isCatalogOpen()) {
-            System.out.println("Error: No catalog file open. Use 'open <filepath>'.");
+            System.out.println("ERROR: No database file open. Use 'open <filepath>'.");
             return;
         }
         try {
             if (args.length != 1) {
-                System.out.println("Usage: import <table_filepath.txt>");
+                System.out.println("Usage: import <file.txt>");
                 return;
             }
             String tableFilePath = args[0];
             File tableFile = new File(tableFilePath);
             if (!tableFile.exists()) {
-                System.out.println("Error: Table file not found: " + tableFilePath);
+                System.out.println("ERROR: Table file not found: " + tableFilePath);
                 return;
             }
 
@@ -36,12 +36,12 @@ public class ImportCommand implements CommandHandler {
 
             database.registerImportedTable(table, tableFilePath);
 
-            System.out.println("Table '" + tableNameFromFile + "' imported successfully from '" + tableFilePath + "' and registered in catalog.");
+            System.out.println("Table '" + tableNameFromFile + "' imported successfully from '" + tableFilePath + "' and registered in database.");
 
         } catch (DatabaseOperationException e) {
-            System.out.println("Error importing file: " + e.getMessage());
+            System.out.println("ERROR: Importing file: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during import: " + e.getMessage());
+            System.out.println("ERROR: Error occurred during import: " + e.getMessage());
         }
     }
 }

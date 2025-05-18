@@ -16,14 +16,14 @@ public class OpenCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (args.length != 1) {
-            System.out.println("Usage: open <catalog_filepath>");
+            System.out.println("Usage: open <filepath>");
             return;
         }
         String filePath = args[0];
 
         if (database.isCatalogOpen()) {
             if (database.hasUnsavedChanges()) {
-                System.out.println("Error: Unsaved changes exist. Please 'save' or 'close' first.");
+                System.out.println("ERROR: Unsaved changes exist. Please 'save' or 'close' first.");
                 return;
             }
         }
@@ -32,9 +32,9 @@ public class OpenCommand implements CommandHandler {
             Map<String, String> registry = FileHandler.readCatalog(filePath);
             database.loadCatalog(filePath, registry);
         } catch (DatabaseOperationException e) {
-            System.out.println("Error opening catalog '" + filePath + "': " + e.getMessage());
+            System.out.println("ERROR: Opening database '" + filePath + "': " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("An unexpected error occurred during open: " + e.getMessage());
+            System.out.println("ERROR: Occurred during open: " + e.getMessage());
         }
     }
 }

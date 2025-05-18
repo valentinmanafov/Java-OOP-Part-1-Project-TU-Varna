@@ -14,7 +14,7 @@ public class CreateTableCommand implements CommandHandler {
     @Override
     public void execute(String[] args) {
         if (!database.isCatalogOpen()) {
-            System.out.println("Error: No catalog file open. Use 'open <filepath>'.");
+            System.out.println("ERROR: No database file open. Use 'open <filepath>'.");
             return;
         }
         try {
@@ -31,19 +31,19 @@ public class CreateTableCommand implements CommandHandler {
                 try {
                     colType = DataType.valueOf(typeName.trim().toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    System.out.println("Invalid type: " + typeName);
+                    System.out.println("ERROR: Invalid type: " + typeName);
                     return;
                 }
                 for (Column existing : columns) {
                     if (existing.getName().equalsIgnoreCase(colName)) {
-                        System.out.println("Error: Duplicate column name '" + colName + "'.");
+                        System.out.println("ERROR: Duplicate column name '" + colName + "'.");
                         return;
                     }
                 }
                 columns.add(new Column(colName, colType));
             }
             if (columns.isEmpty()) {
-                System.out.println("Error: Must define at least one column.");
+                System.out.println("ERROR: Must define at least one column.");
                 return;
             }
 
@@ -56,7 +56,7 @@ public class CreateTableCommand implements CommandHandler {
             FileHandler.writeTableToFile(newTable, defaultTablePath);
 
         } catch (DatabaseOperationException | IllegalArgumentException e) {
-            System.out.println("Error creating table: " + e.getMessage());
+            System.out.println("ERROR: creating table: " + e.getMessage());
         }
     }
 }
