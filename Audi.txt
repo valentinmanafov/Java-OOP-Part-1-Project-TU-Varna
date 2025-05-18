@@ -1,0 +1,19 @@
+Table: Audi
+|Model - STRING | Year - INTEGER | Color - STRING    | Price - DOUBLE|
+|---------------+----------------+-------------------+---------------|
+|"E90 320d"     | 2007           | "Black"           | 8992.84        |
+|"E46 330i"     | 2006           | "Silver"          | 10450.23       |
+|"E39 525i"     | 2004           | "Blue"            | 7865.5         |
+|"F30 318i"     | 2013           | "White"           | 11234.67       |
+|"F10 520d"     | 2011           | "Gray"            | 13520.9        |
+|"E92 M3"       | 2008           | "Red"             | 18999.99       |
+|"X3 xDrive20d" | 2015           | "Black"           | 16245.3        |
+|"X5 xDrive30d" | 2014           | "Dark Green"      | 17880.75       |
+|"Z4 sDrive23i" | 2007           | "Yellow"          | 9120.4         |
+|"118d"         | 2012           | "Brown"           | 9450.12        |
+|NULL           | 2016           | "White"           | 15560.88       |
+|"M5 F10"       | 2012           | "Carbon Black"    | 24890.55       |
+|"X1 sDrive18d" | 2017           | "Blue"            | 16995.2        |
+|"G20 330e"     | 2020           | "Portimao Blue"   | 27500.0        |
+|"M2 Competition" | 2018           | "Hockenheim Silver" | 42000.0        |
+|"G30 530d"     | 2019           | "Sophisto Grey"   | 33000.25       |
